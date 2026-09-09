@@ -51,11 +51,46 @@ def emit(data):
         click.echo(json.dumps({"schema_version": 1, "ok": True, "data": data}, ensure_ascii=False))
         return
     console = Console()
+    if isinstance(data, dict) and "plan" in data:
+        preview = data.get("dry_run", False) or data.get("applied") is False
+        label = "Preview" if preview else data.get("action", "Migration").capitalize()
+        console.print(Text(f"dynamic-skills · {label}", style="bold cyan"))
+        if data.get("project"):
+            console.print(Text(data["project"], style="dim"))
+        table = Table(box=None, header_style="bold", padding=(0, 2))
+        for title in ("Action", "Skill / path", "Version / reason"):
+            table.add_column(title, overflow="fold")
+        for step in data["plan"]:
+            table.add_row(
+                Text(step["action"], style="yellow" if preview else "green"),
+                Text(step.get("path", step.get("id", ""))),
+                Text(
+                    step.get("digest", "")[:12]
+                    or step.get("issue", "")
+                    or step.get("ownership", "")
+                ),
+            )
+        if data["plan"]:
+            console.print(table)
+        else:
+            console.print("No filesystem changes.", style="dim")
+        if "skills" in data:
+            console.print(Text(f"Selected: {', '.join(data['skills']) or 'none'}"))
+        if data.get("restore"):
+            console.print(Text(data["restore"], style="cyan"))
+        for agent, hint in data.get("refresh", {}).items():
+            console.print(Text(f"{agent}: {hint}", style="dim"))
+        for key in ("note", "discovery_note"):
+            if data.get(key):
+                console.print(Text(data[key], style="dim"))
+        return
     if isinstance(data, list):
         if not data:
             console.print("No matching items.", style="dim")
             return
         keys = [k for k in data[0] if k not in {"source", "versions", "documentation"}]
+        if "current" in data[0]:
+            keys = ["id", "description", "tags", "current"]
         table = Table(
             title="dynamic-skills",
             title_style="bold cyan",
@@ -135,9 +170,10 @@ def list_skills(tag):
 @cli.command()
 @click.argument("query", default="")
 @click.option("--tag")
-def search(query, tag):
+@click.option("--limit", type=click.IntRange(1, 1000), default=20, show_default=True)
+def search(query, tag, limit):
     """Search IDs, descriptions and tags locally (all words must match)."""
-    emit(pool().search(query, tag))
+    emit(pool().search(query, tag)[:limit])
 
 
 @cli.command()
@@ -150,9 +186,32 @@ def info(skill_id):
 @cli.command()
 @click.argument("skill_id")
 @click.option("--revision", help="Full hash or unambiguous prefix.")
-def read(skill_id, revision):
+@click.option(
+    "--project",
+    "project_path",
+    type=click.Path(path_type=Path),
+    help="Read this project's pinned version instead of the pool default.",
+)
+def read(skill_id, revision, project_path):
     """Read instructions on demand and count this CLI read, without activating."""
-    result = pool().read(skill_id, revision)
+    p = pool()
+    if project_path is not None:
+        if revision:
+            raise SkillsError("Choose --project or --revision, not both.")
+        project = Project(project_path, p)
+        pin = project.load()[1].get(skill_id)
+        if not pin:
+            raise SkillsError(f"{skill_id} is not selected in this project.", "not_found")
+        path = p.restore_object(pin["digest"], pin["source"])
+        p.event("read", skill_id, str(project.root))
+        result = {
+            "id": skill_id,
+            "digest": pin["digest"],
+            "path": str(path),
+            "content": (path / "SKILL.md").read_text(encoding="utf-8"),
+        }
+    else:
+        result = p.read(skill_id, revision)
     if click.get_current_context().find_root().params["json_output"]:
         emit(result)
     else:
@@ -333,15 +392,11 @@ def scan_options(function):
     )(function)
 
 
-@cli.command()
+@cli.command("scan")
 @scan_options
 def scan_globals(roots, user_home):
     """Inventory global candidates, duplicate names and protected origins."""
     emit(scan(pool(), user_home, roots))
-
-
-# Keep the short discovery command while preserving a descriptive Python function name.
-cli.add_command(scan_globals, "scan")
 
 
 @cli.command()
@@ -401,6 +456,17 @@ def doctor(project_path):
     )
     if issues:
         click.get_current_context().exit(1)
+
+
+@cli.command()
+@project_option
+def bridge(project_path):
+    """Activate one small manager skill for on-demand pool discovery and CLI reads."""
+    p = pool()
+    project = Project(project_path, p)
+    project.load()
+    p.install({"kind": "builtin", "name": "dynamic-skills"})
+    emit(project.plug(["dynamic-skills"]))
 
 
 def main():

@@ -59,6 +59,15 @@ class Pool:
         )
         if not isinstance(value, dict) or value.get("schema_version") != 1:
             raise SkillsError("Unsupported pool schema. Upgrade dynamic-skills.")
+        if any(
+            not isinstance(value.get(k), dict) for k in ("skills", "presets", "counts")
+        ) or not isinstance(value.get("events"), list):
+            raise SkillsError("Invalid pool catalog structure; restore index.json from a backup.")
+        for key, item in value["skills"].items():
+            valid_name(key)
+            if not isinstance(item, dict) or not isinstance(item.get("versions"), list):
+                raise SkillsError("Invalid skill version history in pool catalog.")
+            valid_digest(item.get("current"))
         return value
 
     def save(self, index: dict):
@@ -189,6 +198,28 @@ class Pool:
                 )
             self.put(files)
             return self.verify(digest)
+
+    def remember_pin(self, skill_id: str, pin: dict):
+        """Make a restored skill searchable without changing existing catalog defaults."""
+        with self.lock:
+            data = self.index()
+            if skill_id in data["skills"]:
+                return
+            meta = metadata(skill_files(self.verify(pin["digest"])))
+            data["skills"][skill_id] = {
+                "id": skill_id,
+                **meta,
+                "current": pin["digest"],
+                "versions": [
+                    {
+                        **pin,
+                        "created": now(),
+                        "name": meta["name"],
+                        "description": meta["description"],
+                    }
+                ],
+            }
+            self.save(data)
 
     def rollback(self, skill_id: str, revision: str | None) -> dict:
         with self.lock:
