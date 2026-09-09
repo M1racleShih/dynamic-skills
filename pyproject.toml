@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dynamic-skills"
+version = "0.1.0"
+description = "A versioned skill pool. Just the skills your project needs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "M1racleShih"}]
+dependencies = ["click>=8.1,<9", "rich>=13.9,<15", "PyYAML>=6.0.2,<7", "filelock>=3.16,<4", "platformdirs>=4.3,<5"]
+keywords = ["agent", "skills", "codex", "claude", "kimi", "pi"]
+classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console", "Programming Language :: Python :: 3", "Topic :: Software Development"]
+
+[project.urls]
+Homepage = "https://github.com/M1racleShih/dynamic-skills"
+Issues = "https://github.com/M1racleShih/dynamic-skills/issues"
+
+[project.scripts]
+dynamic-skills = "dynamic_skills.cli:main"
+dskills = "dynamic_skills.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "pytest-cov>=6,<8", "ruff>=0.11", "build>=1.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dynamic_skills"]
