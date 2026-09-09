@@ -88,12 +88,24 @@ def checkout(url: str, ref: str | None = None, commit: str | None = None):
 
 @contextmanager
 def source_files(source: dict, pinned: bool = False):
+    if not isinstance(source, dict):
+        raise SkillsError("Source must be an object.")
     if source.get("kind") == "local":
+        if not isinstance(source.get("path"), str) or not source["path"]:
+            raise SkillsError("Local source requires a path.")
         path = Path(source["path"]).expanduser().resolve()
         if not path.exists():
             raise SkillsError(f"Local source is unavailable: {path}", "source_missing")
         yield path, source
     elif source.get("kind") == "git":
+        if not isinstance(source.get("url"), str):
+            raise SkillsError("Git source requires a repository URL.")
+        if not isinstance(source.get("subdir", "."), str):
+            raise SkillsError("Git skill subdir must be a string.")
+        if any(
+            source.get(k) is not None and not isinstance(source[k], str) for k in ("ref", "commit")
+        ):
+            raise SkillsError("Git refs must be strings.")
         with checkout(
             source["url"], source.get("ref"), source.get("commit") if pinned else None
         ) as (repo, commit):
@@ -102,6 +114,8 @@ def source_files(source: dict, pinned: bool = False):
             if path.is_symlink() or not path.exists():
                 raise SkillsError(f"Skill path is missing or symlinked: {subdir}", "source_missing")
             yield path, {**source, "commit": commit}
+    elif source.get("kind") == "builtin" and source.get("name") == "dynamic-skills":
+        yield Path(__file__).parent / "bundled/dynamic-skills", source
     else:
         raise SkillsError("Unsupported source kind.")
 

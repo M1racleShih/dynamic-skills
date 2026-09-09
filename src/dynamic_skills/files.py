@@ -165,7 +165,7 @@ def metadata(files: list[tuple[str, bytes, bool]]) -> dict:
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             tags = []
         return {"name": name, "description": description.strip(), "tags": sorted(set(tags))}
-    except (ValueError, StopIteration, UnicodeError, yaml.YAMLError) as exc:
+    except (ValueError, StopIteration, UnicodeError, RecursionError, yaml.YAMLError) as exc:
         raise SkillsError(f"Invalid SKILL.md: {exc}") from exc
 
 

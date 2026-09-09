@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import os
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -12,7 +11,16 @@ from filelock import FileLock
 
 from .adapters import ADAPTERS, detect_agents, select_agents
 from .errors import SkillsError
-from .files import json_bytes, read_json, safe_child, tree_digest, valid_digest, valid_name
+from .files import (
+    json_bytes,
+    metadata,
+    read_json,
+    safe_child,
+    skill_files,
+    tree_digest,
+    valid_digest,
+    valid_name,
+)
 from .pool import Pool, now
 from .transaction import Transaction, exists, output_path
 
@@ -148,7 +156,8 @@ class Project:
         if not exists(target):
             return
         if old["mode"] == "symlink":
-            if not target.is_symlink() or os.readlink(target) != old["link"]:
+            # Windows readlink may include the extended-length \\?\ prefix.
+            if not target.is_symlink() or target.resolve() != Path(old["link"]).resolve():
                 raise SkillsError(f"Managed link was replaced: {target}", "conflict")
             # Verify the content too; linking never grants silent write-through permission.
             if target.exists() and tree_digest(target) != old["digest"]:
@@ -223,8 +232,18 @@ class Project:
         if dry_run:
             return {**result, "dry_run": True}
         # Validate all objects, including unchanged outputs, before committing metadata.
-        for pin in pins.values():
-            self.pool.restore_object(pin["digest"], pin["source"])
+        native_names = set()
+        for skill_id, pin in pins.items():
+            obj = self.pool.restore_object(pin["digest"], pin["source"])
+            name = metadata(skill_files(obj))["name"].casefold()
+            if name in native_names:
+                raise SkillsError(
+                    f"Multiple skills declare the native name {name!r}. "
+                    "Pool aliases do not rename SKILL.md; select one per project.",
+                    "name_conflict",
+                )
+            native_names.add(name)
+            self.pool.remember_pin(skill_id, pin)
         for step in plan:
             if step["action"] == "write":
                 output = outputs[step["path"]]
