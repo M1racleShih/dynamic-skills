@@ -16,6 +16,7 @@ from . import __version__
 from .adapters import adapter_info
 from .errors import SkillsError
 from .pool import Pool
+from .project import Project
 from .sources import parse_source
 
 
@@ -199,10 +200,128 @@ def stats(events):
         )
 
 
+def project_option(function):
+    return click.option(
+        "--project",
+        "project_path",
+        type=click.Path(path_type=Path),
+        default=".",
+        show_default=True,
+        help="Project path; finds parent manifest.",
+    )(function)
+
+
+@cli.command()
+@project_option
+@click.option("--agent", "agent_names", multiple=True, help="codex, claude, kimi, pi; repeatable.")
+@click.option("--mode", type=click.Choice(["copy", "symlink"]), default="copy", show_default=True)
+def init(project_path, agent_names, mode):
+    """Initialize project selection; detect installed agents if none are specified."""
+    emit(Project(project_path, pool()).initialize(list(agent_names), mode))
+
+
+@cli.command()
+@click.argument("skills", nargs=-1, required=True)
+@click.option("--revision", help="Pin one skill to a retained version instead of current.")
+@click.option("--dry-run", is_flag=True)
+@project_option
+def plug(skills, revision, dry_run, project_path):
+    """Activate pool skills at exact versions, or explicitly advance existing pins."""
+    emit(Project(project_path, pool()).plug(list(skills), revision, dry_run))
+
+
+@cli.command()
+@click.argument("skills", nargs=-1, required=True)
+@click.option("--dry-run", is_flag=True)
+@project_option
+def unplug(skills, dry_run, project_path):
+    """Remove selected skills from this project's native directories."""
+    emit(Project(project_path, pool()).unplug(list(skills), dry_run))
+
+
+@cli.command()
+@click.option("--dry-run", is_flag=True)
+@project_option
+def sync(dry_run, project_path):
+    """Restore exact lockfile versions and rebuild missing owned outputs."""
+    emit(Project(project_path, pool()).sync(dry_run))
+
+
+@cli.command()
+@project_option
+def status(project_path):
+    """Inspect project selection, pins and locally modified outputs."""
+    emit(Project(project_path, pool()).status())
+
+
+@cli.command()
+@click.option("--dry-run", is_flag=True)
+@project_option
+def undo(dry_run, project_path):
+    """Undo the last project change, preserving pool versions and local edits."""
+    emit(Project(project_path, pool()).undo(dry_run))
+
+
+@cli.command()
+@project_option
+def recover(project_path):
+    """Roll back an interrupted project transaction without overwriting new edits."""
+    emit(Project(project_path, pool()).recover())
+
+
+@cli.group()
+def preset():
+    """Save and apply named, version-pinned project configurations."""
+
+
+@preset.command("save")
+@click.argument("name")
+@project_option
+def preset_save(name, project_path):
+    """Save this project's selection, agent targets, mode and pins."""
+    emit(Project(project_path, pool()).save_preset(name))
+
+
+@preset.command("apply")
+@click.argument("name")
+@click.option("--dry-run", is_flag=True)
+@project_option
+def preset_apply(name, dry_run, project_path):
+    """Replace project selection with a preset; use undo to reverse."""
+    emit(Project(project_path, pool()).apply_preset(name, dry_run))
+
+
+@preset.command("list")
+def preset_list():
+    """List locally saved presets."""
+    emit(
+        [
+            {"name": name, "skills": p["manifest"]["skills"], "agents": p["manifest"]["agents"]}
+            for name, p in sorted(pool().index()["presets"].items())
+        ]
+    )
+
+
+@preset.command("remove")
+@click.argument("name")
+def preset_remove(name):
+    """Remove a preset; existing projects are unaffected."""
+    p = pool()
+    with p.lock:
+        data = p.index()
+        if name not in data["presets"]:
+            raise SkillsError(f"Unknown preset: {name}", "not_found")
+        del data["presets"][name]
+        p.save(data)
+    emit({"removed": name})
+
+
 def main():
     # Parsing failures also honor the JSON contract. --help and --version remain text.
     try:
-        cli(standalone_mode=False)
+        result = cli(standalone_mode=False)
+        if isinstance(result, int):
+            raise SystemExit(result)
     except click.ClickException as exc:
         if "--json" in sys.argv[1:]:
             click.echo(

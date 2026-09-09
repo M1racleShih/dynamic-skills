@@ -79,7 +79,7 @@ def safe_child(root: Path, relative: str) -> Path:
     return target
 
 
-def skill_files(root: Path) -> list[tuple[str, bytes, bool]]:
+def skill_files(root: Path, *, ignore_generated: bool = True) -> list[tuple[str, bytes, bool]]:
     """Snapshot regular files; never follow links embedded in third-party skills."""
     root = root.resolve(strict=True)
     if root.is_file():
@@ -91,10 +91,10 @@ def skill_files(root: Path) -> list[tuple[str, bytes, bool]]:
     result = []
     total = 0
     for directory, dirs, files in os.walk(root, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if d not in IGNORE)
+        dirs[:] = sorted(d for d in dirs if not ignore_generated or d not in IGNORE)
         for name in dirs + sorted(files):
             path = Path(directory) / name
-            if name in IGNORE:
+            if ignore_generated and name in IGNORE:
                 continue
             info = path.lstat()
             if stat.S_ISLNK(info.st_mode):
@@ -129,7 +129,7 @@ def digest_files(files: list[tuple[str, bytes, bool]]) -> str:
 
 
 def tree_digest(path: Path) -> str:
-    return digest_files(skill_files(path))
+    return digest_files(skill_files(path, ignore_generated=False))
 
 
 def metadata(files: list[tuple[str, bytes, bool]]) -> dict:
