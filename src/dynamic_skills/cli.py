@@ -15,6 +15,8 @@ from rich.text import Text
 from . import __version__
 from .adapters import adapter_info
 from .errors import SkillsError
+from .migration import migrate as perform_migration
+from .migration import migrations, restore_migration, scan
 from .pool import Pool
 from .project import Project
 from .sources import parse_source
@@ -314,6 +316,91 @@ def preset_remove(name):
         del data["presets"][name]
         p.save(data)
     emit({"removed": name})
+
+
+def scan_options(function):
+    function = click.option(
+        "--from",
+        "roots",
+        multiple=True,
+        type=click.Path(path_type=Path),
+        help="Scan only this skills root; repeatable.",
+    )(function)
+    return click.option(
+        "--user-home",
+        type=click.Path(path_type=Path),
+        help="Override the user home used for discovery.",
+    )(function)
+
+
+@cli.command()
+@scan_options
+def scan_globals(roots, user_home):
+    """Inventory global candidates, duplicate names and protected origins."""
+    emit(scan(pool(), user_home, roots))
+
+
+# Keep the short discovery command while preserving a descriptive Python function name.
+cli.add_command(scan_globals, "scan")
+
+
+@cli.command()
+@scan_options
+@click.option(
+    "--apply", "apply_changes", is_flag=True, help="Execute the displayed migration plan."
+)
+@click.option("--disable", is_flag=True, help="Also move original entries into reversible backups.")
+def migrate(roots, user_home, apply_changes, disable):
+    """Preview global import; --apply executes, --disable also stops global discovery."""
+    emit(perform_migration(pool(), roots, home=user_home, disable=disable, apply=apply_changes))
+
+
+@cli.command("migrations")
+def list_migrations():
+    """List completed and interrupted migrations and their restore IDs."""
+    emit(migrations(pool()))
+
+
+@cli.command("migrate-restore")
+@click.argument("migration_id")
+def migrate_restore(migration_id):
+    """Restore originals after migration; refuse to overwrite newly created files."""
+    emit(restore_migration(pool(), migration_id))
+
+
+@cli.command()
+@project_option
+def doctor(project_path):
+    """Check pool integrity, migration recovery and project output health."""
+    p = pool()
+    issues = []
+    checked = set()
+    for item in p.index()["skills"].values():
+        for version in item["versions"]:
+            digest = version["digest"]
+            if digest in checked:
+                continue
+            checked.add(digest)
+            try:
+                p.verify(digest)
+            except SkillsError as exc:
+                issues.append({"skill": item["id"], "issue": str(exc)})
+    for record in migrations(p):
+        if record["state"] == "preparing":
+            issues.append({"migration": record["id"], "issue": "Run migrate-restore to recover."})
+    project = Project(project_path, p)
+    if (project.root / "dynamic-skills.json").exists():
+        issues.extend(project.status()["issues"])
+    emit(
+        {
+            "healthy": not issues,
+            "pool": str(p.root),
+            "objects_checked": len(checked),
+            "issues": issues,
+        }
+    )
+    if issues:
+        click.get_current_context().exit(1)
 
 
 def main():
