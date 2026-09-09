@@ -75,9 +75,10 @@ dskills install https://github.com/owner/repository.git \
 
 Use a repository URL, not a GitHub `/tree/` page. A repository containing several
 skills requires `--skill` to select one. HTTPS and SSH are supported. Authentication
-uses your SSH agent or Git's normal available credentials; embedded URL passwords,
-Git hooks, submodules and skill installation scripts are not used. Custom global
-Git configuration, including credential helpers, is deliberately not loaded.
+can use your SSH agent and SSH configuration. Use SSH for private repositories;
+embedded URL passwords, Git hooks, submodules and skill installation scripts are
+not used. Custom global Git configuration, including credential helpers, is
+deliberately not loaded.
 
 ## One pool, an explicit project selection
 
@@ -211,7 +212,9 @@ dskills doctor
 resolves a floating Git branch to replace the commit in your lockfile. Git sources
 must still expose the pinned commit. Local sources record an absolute path and
 are portable only when that source is available with identical content, or when
-the required pool objects have been copied to the new machine. Review source paths
+the required pool objects have been copied to the new machine. Filesystems must
+preserve the recorded file contents and executable flags; differences fail integrity
+checks, including executable-bit differences across operating systems. Review source paths
 before publishing a lockfile. Built-in bridge pins can be restored from a matching
 Dynamic Skills package version.
 

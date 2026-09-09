@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -164,7 +165,7 @@ def test_failure_mid_transaction_restores_previous_outputs(project, make_skill, 
     original = os.replace
 
     def fail_on_second_output(source, destination):
-        if str(destination).endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".kimi/skills/example"):
             raise OSError("disk full")
         return original(source, destination)
 
@@ -182,7 +183,7 @@ def test_process_interruption_leaves_recoverable_journal(project, make_skill, mo
     original = os.replace
 
     def interrupt(source, destination):
-        if str(destination).endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".kimi/skills/example"):
             raise KeyboardInterrupt()
         return original(source, destination)
 

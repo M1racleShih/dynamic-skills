@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import os
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -157,7 +156,8 @@ class Project:
         if not exists(target):
             return
         if old["mode"] == "symlink":
-            if not target.is_symlink() or os.readlink(target) != old["link"]:
+            # Windows readlink may include the extended-length \\?\ prefix.
+            if not target.is_symlink() or target.resolve() != Path(old["link"]).resolve():
                 raise SkillsError(f"Managed link was replaced: {target}", "conflict")
             # Verify the content too; linking never grants silent write-through permission.
             if target.exists() and tree_digest(target) != old["digest"]:

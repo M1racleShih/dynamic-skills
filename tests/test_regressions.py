@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -52,7 +53,7 @@ def test_recovery_refuses_edits_after_interruption(pool, make_skill, tmp_path, m
     real = os.replace
 
     def interrupt(source, destination):
-        if str(destination).endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".kimi/skills/example"):
             raise KeyboardInterrupt()
         return real(source, destination)
 

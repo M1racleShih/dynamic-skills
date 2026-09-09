@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 
@@ -12,7 +13,7 @@ def test_global_scan_covers_four_agents_and_deduplicates_shared_paths(pool, make
         make_skill(parent=home / relative)
     rows = scan(pool, home)
     assert len(rows) == 4
-    shared = next(row for row in rows if ".agents/skills" in row["path"])
+    shared = next(row for row in rows if ".agents/skills" in Path(row["path"]).as_posix())
     assert set(shared["agents"]) == {"codex", "kimi", "pi"}
 
 
@@ -51,13 +52,15 @@ def test_relative_symlink_restored_without_moving_target(pool, make_skill, tmp_p
     root = tmp_path / "global"
     root.mkdir()
     link = root / "example"
-    link.symlink_to("../sources/example", target_is_directory=True)
+    relative_target = Path("../sources/example")
+    link.symlink_to(relative_target, target_is_directory=True)
+    assert link.exists()
     result = migrate(pool, (root,), apply=True, disable=True)
     assert not link.is_symlink()
     assert target.exists()
     restore_migration(pool, result["migration"])
     assert link.is_symlink() and link.exists()
-    assert os.readlink(link) == "../sources/example"
+    assert os.readlink(link) == str(relative_target)
 
 
 def test_flat_markdown_migration(pool, tmp_path):
