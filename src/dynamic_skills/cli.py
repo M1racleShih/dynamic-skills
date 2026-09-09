@@ -48,7 +48,8 @@ class App(click.Group):
 def emit(data):
     ctx = click.get_current_context().find_root()
     if ctx.params["json_output"]:
-        click.echo(json.dumps({"schema_version": 1, "ok": True, "data": data}, ensure_ascii=False))
+        # ASCII JSON escapes round-trip Unicode even through legacy Windows pipes.
+        click.echo(json.dumps({"schema_version": 1, "ok": True, "data": data}))
         return
     console = Console()
     if isinstance(data, dict) and "plan" in data:
