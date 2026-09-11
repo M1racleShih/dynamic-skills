@@ -187,7 +187,7 @@ dskills rollback my-skill --revision <hash>
 
 Hashes may be full SHA-256 values or unambiguous prefixes. Versions retain the
 complete skill tree and executable flags. Imports reject embedded symlinks and
-special files, and cap each skill at 64 MiB / 4,096 files. Generated directories
+special files, and cap each skill at 128 MiB / 16,384 files. Generated directories
 such as `.git`, `.venv`, `node_modules` and `__pycache__` are excluded on import.
 Any files later added inside a managed output count as local changes.
 

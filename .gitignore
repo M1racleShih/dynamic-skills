@@ -8,4 +8,5 @@ htmlcov/
 dist/
 *.egg-info/
 .code-review-graph/
-.dynamic-skills/
+.codegraph/
+.vscode/

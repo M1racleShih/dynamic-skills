@@ -1,9 +1,40 @@
 import pytest
 
+from dynamic_skills import files
 from dynamic_skills.errors import SkillsError
 from dynamic_skills.files import digest_files, metadata, skill_files
 
 from .conftest import local
+
+
+def test_skill_file_count_boundary(make_skill, monkeypatch):
+    source = make_skill()
+    monkeypatch.setattr(files, "MAX_FILES", 2)
+    assert len(skill_files(source)) == 2
+    (source / "extra.txt").write_text("extra")
+    with pytest.raises(SkillsError, match="file limit"):
+        skill_files(source)
+
+
+def test_skill_total_bytes_boundary(make_skill, monkeypatch):
+    source = make_skill()
+    size = sum(len(content) for _, content, _ in skill_files(source))
+    monkeypatch.setattr(files, "MAX_BYTES", size)
+    assert sum(len(content) for _, content, _ in skill_files(source)) == size
+    with (source / "references/guide.md").open("a") as stream:
+        stream.write("x")
+    with pytest.raises(SkillsError, match="limit"):
+        skill_files(source)
+
+
+def test_standalone_skill_bytes_boundary(tmp_path, monkeypatch):
+    source = tmp_path / "skill.md"
+    source.write_bytes(b"example")
+    monkeypatch.setattr(files, "MAX_BYTES", 7)
+    assert skill_files(source) == [("SKILL.md", b"example", False)]
+    source.write_bytes(b"example!")
+    with pytest.raises(SkillsError, match="limit"):
+        skill_files(source)
 
 
 def test_install_update_rollback_preserves_snapshots(pool, make_skill):

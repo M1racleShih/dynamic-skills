@@ -14,8 +14,8 @@ import yaml
 
 from .errors import SkillsError
 
-MAX_BYTES = 64 * 1024 * 1024
-MAX_FILES = 4096
+MAX_BYTES = 128 * 1024 * 1024
+MAX_FILES = 16384
 IGNORE = {".git", ".venv", "node_modules", "__pycache__", ".DS_Store"}
 NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 DIGEST = re.compile(r"[a-f0-9]{64}\Z")
@@ -86,7 +86,7 @@ def skill_files(root: Path, *, ignore_generated: bool = True) -> list[tuple[str,
         if root.suffix.lower() != ".md":
             raise SkillsError(f"Expected a skill directory or Markdown file: {root}")
         if root.stat().st_size > MAX_BYTES:
-            raise SkillsError("Skill exceeds the 64 MiB limit.")
+            raise SkillsError("Skill exceeds the 128 MiB limit.")
         return [("SKILL.md", root.read_bytes(), False)]
     result = []
     total = 0
@@ -105,7 +105,7 @@ def skill_files(root: Path, *, ignore_generated: bool = True) -> list[tuple[str,
                 raise SkillsError(f"Not a regular file: {path}", "unsafe_path")
             total += info.st_size
             if total > MAX_BYTES or len(result) >= MAX_FILES:
-                raise SkillsError("Skill exceeds the 64 MiB / 4096 file limit.")
+                raise SkillsError("Skill exceeds the 128 MiB / 16384 file limit.")
             result.append(
                 (
                     path.relative_to(root).as_posix(),
