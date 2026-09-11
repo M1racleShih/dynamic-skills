@@ -193,13 +193,46 @@ Any files later added inside a managed output count as local changes.
 
 ## Reproduce a project's setup
 
-Commit these files:
+Project metadata lives in `.dynamic-skills/`:
 
 ```text
-dynamic-skills.json          # Agents, distribution mode and selected pool IDs
-dynamic-skills.lock.json     # Exact content hashes, source URLs and Git commits
-.gitignore                  # Local state and generated skill directories
+.dynamic-skills/
+  .gitignore       # Generated from the track setting
+  config.json      # Agents, mode, skill selection and track (default false)
+  lock.json        # Exact hashes and source provenance
+  state.json       # Local output ownership
+  project.lock     # Local process lock
+  history/         # Local undo snapshots
+  transaction/     # Interrupted transaction recovery
 ```
+
+By default the internal `.gitignore` contains `*`, ignoring all of this directory,
+including itself. dskills does not create or edit the project's root `.gitignore`.
+To allow sharing configuration:
+
+```sh
+dskills init --agent codex --track  # New project
+# Or, for an initialized project:
+dskills config --track
+git add .dynamic-skills/
+```
+
+Only `config.json`, `lock.json`, and the internal `.gitignore` become available
+for tracking. State, history, process locks and transactions always remain ignored.
+`dskills config --no-track` restores the default. These commands never stage files
+or remove them from Git's index. Already tracked files require `git rm --cached`
+to stop tracking. Existing parent/global ignore rules or local exclusions for
+`.dynamic-skills/` can still block tracking; remove those rules yourself or use
+`git add -f` for the three shared files. dskills leaves existing rules untouched.
+
+Legacy root `dynamic-skills.json` and `dynamic-skills.lock.json` are still readable.
+The next successful `sync` or other project write moves them into the new layout
+in a recoverable transaction. Read-only commands and dry runs do not migrate them.
+Conflicting old and new metadata are rejected instead of silently overwriting data.
+
+Generated skills outside `.dynamic-skills/` still use Git's local `info/exclude`
+(normally `.git/info/exclude`), with support for worktrees and nested projects.
+Non-Git projects need no external exclude rules.
 
 Then, after cloning:
 
@@ -224,7 +257,7 @@ on macOS, and `%LOCALAPPDATA%\dynamic-skills` on Windows. Set
 `DYNAMIC_SKILLS_HOME` or pass the global `--home` option to override it.
 
 Project ownership, undo history and interrupted-write journals live in
-`.dynamic-skills/`. Commit the manifest and lockfile; keep this local state out of
+`.dynamic-skills/`. Optionally share the manifest and lockfile; keep this local state out of
 Git. Generated ignore rules are narrowly scoped to each managed skill and are
 retained after removal, so reactivation remains ignored.
 

@@ -66,3 +66,16 @@ def test_json_preserves_unicode_through_legacy_terminal_encoding(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["data"]["description"] == description
+
+
+def test_project_tracking_configuration(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    result = run(tmp_path, "init", "--project", str(project), "--agent", "pi", "--track")
+    assert result.returncode == 0, result.stdout
+    config = project / ".dynamic-skills/config.json"
+    assert json.loads(config.read_text())["track"] is True
+    result = run(tmp_path, "config", "--project", str(project), "--no-track")
+    assert result.returncode == 0, result.stdout
+    assert json.loads(config.read_text())["track"] is False
+    assert (project / ".dynamic-skills/.gitignore").read_text() == "*\n"

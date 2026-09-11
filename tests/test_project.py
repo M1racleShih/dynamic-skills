@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -97,6 +98,7 @@ def test_cold_pool_restore_and_subdirectory_discovery(project, make_skill, tmp_p
     project.plug(["example"])
     clone = tmp_path / "clone"
     clone.mkdir()
+    (clone / ".dynamic-skills").mkdir()
     for filename in (MANIFEST, LOCKFILE):
         shutil.copy(project.root / filename, clone / filename)
     (clone / "src").mkdir()
@@ -114,6 +116,7 @@ def test_changed_source_does_not_satisfy_lock(project, make_skill, tmp_path):
     (source / "SKILL.md").write_text("different")
     clone = tmp_path / "clone"
     clone.mkdir()
+    (clone / ".dynamic-skills").mkdir()
     for filename in (MANIFEST, LOCKFILE):
         shutil.copy(project.root / filename, clone / filename)
     restored = Project(clone, Pool(tmp_path / "empty-pool"))
@@ -206,3 +209,182 @@ def test_manifest_traversal_rejected(project):
     (project.root / MANIFEST).write_text(json.dumps(manifest))
     with pytest.raises(SkillsError, match="Invalid skill"):
         project.sync()
+
+
+def test_generated_metadata_is_ignored_by_git(project, make_skill):
+    subprocess.run(["git", "init", "-q", str(project.root)], check=True)
+    ignore = project.root / ".gitignore"
+    ignore.write_text("# Keep existing rules\n/custom")
+    project.pool.install(local(make_skill()))
+    project.initialize(["codex"], "copy")
+    project.plug(["example"])
+    (project.root / "app.json").write_text("{}")
+    result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=project.root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert set(result.stdout.splitlines()) == {".gitignore", "app.json"}
+    assert ignore.read_text() == "# Keep existing rules\n/custom"
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_sync_repairs_local_excludes_without_changing_history(project, nested):
+    subprocess.run(["git", "init", "-q", str(project.root)], check=True)
+    repository = project.root
+    if nested:
+        root = repository / "nested [project]"
+        root.mkdir()
+        project = Project(root, project.pool)
+    project.initialize(["codex"], "copy")
+    exclude = repository / ".git/info/exclude"
+    exclude.write_text("# custom\n/custom")
+    before = project.state()
+    project.sync(dry_run=True)
+    assert exclude.read_text() == "# custom\n/custom"
+    assert not project.sync()["changed"]
+    assert project.state() == before
+    assert not (project.root / ".gitignore").exists()
+    result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout == ""
+    content = exclude.read_bytes()
+    assert not project.sync()["changed"]
+    assert exclude.read_bytes() == content
+
+
+def test_non_git_project_does_not_create_gitignore(project):
+    project.initialize(["codex"], "copy")
+    assert not (project.root / ".gitignore").exists()
+    assert not (project.root / ".git").exists()
+
+
+def test_worktree_uses_git_local_excludes(project, tmp_path, make_skill):
+    subprocess.run(["git", "init", "-q", str(project.root)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project.root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "init",
+        ],
+        check=True,
+    )
+    root = tmp_path / "worktree"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project.root),
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "test",
+            str(root),
+        ],
+        check=True,
+    )
+    linked = Project(root, project.pool)
+    linked.initialize(["codex"], "copy")
+    linked.pool.install(local(make_skill()))
+    linked.plug(["example"])
+    assert not (root / ".gitignore").exists()
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout == ""
+
+
+def test_tracking_switch_only_exposes_shared_metadata(project):
+    subprocess.run(["git", "init", "-q", str(project.root)], check=True)
+    project.initialize(["codex"], "copy")
+    assert (project.root / ".dynamic-skills/.gitignore").read_text() == "*\n"
+    assert not (project.root / "dynamic-skills.json").exists()
+    project.configure(True)
+    result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=project.root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert set(result.stdout.splitlines()) == {
+        MANIFEST,
+        LOCKFILE,
+        ".dynamic-skills/.gitignore",
+    }
+    project.configure(False)
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=project.root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout == ""
+
+
+def test_legacy_metadata_migrates_on_sync_and_undo(project, make_skill):
+    project.pool.install(local(make_skill()))
+    project.initialize(["codex"], "copy")
+    project.plug(["example"])
+    (project.root / MANIFEST).rename(project.root / "dynamic-skills.json")
+    (project.root / LOCKFILE).rename(project.root / "dynamic-skills.lock.json")
+    (project.root / ".dynamic-skills/.gitignore").unlink()
+    child = project.root / "src"
+    child.mkdir()
+    legacy = Project(child, project.pool)
+    assert legacy.root == project.root
+    assert legacy.status()["healthy"]
+    legacy.sync(dry_run=True)
+    assert (project.root / "dynamic-skills.json").exists()
+    assert not (project.root / MANIFEST).exists()
+    assert legacy.sync()["changed"]
+    assert not (project.root / "dynamic-skills.json").exists()
+    assert not (project.root / "dynamic-skills.lock.json").exists()
+    assert legacy.status()["healthy"]
+    legacy.undo()
+    assert legacy.status()["healthy"]
+    assert (project.root / MANIFEST).exists()
+
+
+def test_migration_interruption_recovers_legacy_files(project, monkeypatch):
+    project.initialize(["codex"], "copy")
+    (project.root / MANIFEST).rename(project.root / "dynamic-skills.json")
+    (project.root / LOCKFILE).rename(project.root / "dynamic-skills.lock.json")
+    original = os.replace
+
+    def interrupt(source, destination):
+        if Path(destination) == project.root / MANIFEST:
+            raise KeyboardInterrupt()
+        return original(source, destination)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "replace", interrupt)
+        with pytest.raises(KeyboardInterrupt):
+            project.sync()
+    assert project.recover()["recovered"]
+    assert (project.root / "dynamic-skills.json").exists()
+    assert (project.root / "dynamic-skills.lock.json").exists()
+    assert not (project.root / MANIFEST).exists()
+    project.sync()
+    assert project.status()["healthy"]

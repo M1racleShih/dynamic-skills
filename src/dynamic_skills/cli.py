@@ -277,9 +277,18 @@ def project_option(function):
 @project_option
 @click.option("--agent", "agent_names", multiple=True, help="codex, claude, kimi, pi; repeatable.")
 @click.option("--mode", type=click.Choice(["copy", "symlink"]), default="copy", show_default=True)
-def init(project_path, agent_names, mode):
+@click.option("--track/--no-track", default=False, help="Allow Git to track project configuration.")
+def init(project_path, agent_names, mode, track):
     """Initialize project selection; detect installed agents if none are specified."""
-    emit(Project(project_path, pool()).initialize(list(agent_names), mode))
+    emit(Project(project_path, pool()).initialize(list(agent_names), mode, track=track))
+
+
+@cli.command()
+@project_option
+@click.option("--track/--no-track", required=True, help="Allow or ignore shared configuration.")
+def config(project_path, track):
+    """Set whether project configuration is available for Git tracking."""
+    emit(Project(project_path, pool()).configure(track))
 
 
 @cli.command()
@@ -445,7 +454,7 @@ def doctor(project_path):
         if record["state"] == "preparing":
             issues.append({"migration": record["id"], "issue": "Run migrate-restore to recover."})
     project = Project(project_path, p)
-    if (project.root / "dynamic-skills.json").exists():
+    if (project.root / project.metadata_paths()[0]).exists():
         issues.extend(project.status()["issues"])
     emit(
         {

@@ -37,7 +37,10 @@ def output_path(root: Path, relative: str) -> Path:
     allowed = {
         "dynamic-skills.json",
         "dynamic-skills.lock.json",
-        ".gitignore",
+        ".gitignore",  # Retained for recovery of older transactions.
+        ".dynamic-skills/config.json",
+        ".dynamic-skills/lock.json",
+        ".dynamic-skills/.gitignore",
         ".dynamic-skills/state.json",
     }
     path = Path(relative)

@@ -38,6 +38,7 @@ def test_symlinked_metadata_is_never_overwritten(pool, tmp_path):
     root.mkdir()
     outside = tmp_path / "valuable.json"
     outside.write_text("keep")
+    (root / MANIFEST).parent.mkdir()
     (root / MANIFEST).symlink_to(outside)
     with pytest.raises(SkillsError):
         Project(root, pool).initialize(["pi"], "copy")

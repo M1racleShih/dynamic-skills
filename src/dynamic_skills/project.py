@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import subprocess
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -12,6 +13,7 @@ from filelock import FileLock
 from .adapters import ADAPTERS, detect_agents, select_agents
 from .errors import SkillsError
 from .files import (
+    atomic_write,
     json_bytes,
     metadata,
     read_json,
@@ -24,15 +26,18 @@ from .files import (
 from .pool import Pool, now
 from .transaction import Transaction, exists, output_path
 
-MANIFEST = "dynamic-skills.json"
-LOCKFILE = "dynamic-skills.lock.json"
+LEGACY_MANIFEST = "dynamic-skills.json"
+LEGACY_LOCKFILE = "dynamic-skills.lock.json"
+MANIFEST = ".dynamic-skills/config.json"
+LOCKFILE = ".dynamic-skills/lock.json"
+IGNORE_FILE = ".dynamic-skills/.gitignore"
 STATE = ".dynamic-skills/state.json"
 
 
 def project_root(path: Path) -> Path:
     path = path.expanduser().resolve()
     for candidate in (path, *path.parents):
-        if (candidate / MANIFEST).is_file():
+        if (candidate / MANIFEST).is_file() or (candidate / LEGACY_MANIFEST).is_file():
             return candidate
         if (candidate / ".git").exists():
             break
@@ -42,6 +47,8 @@ def project_root(path: Path) -> Path:
 def validate_manifest(data):
     if not isinstance(data, dict) or data.get("schema_version") != 1:
         raise SkillsError("Unsupported project manifest schema.")
+    if not isinstance(data.get("track", False), bool):
+        raise SkillsError("Manifest track must be a boolean.")
     if not isinstance(data.get("agents"), list):
         raise SkillsError("Manifest agents must be a list.")
     select_agents(data["agents"])
@@ -88,12 +95,26 @@ class Project:
         with FileLock(path, timeout=10):
             yield
 
+    def metadata_paths(self) -> tuple[str, str]:
+        current = any(exists(self.root / p) for p in (MANIFEST, LOCKFILE))
+        legacy = any(exists(self.root / p) for p in (LEGACY_MANIFEST, LEGACY_LOCKFILE))
+        if current and legacy:
+            raise SkillsError("Both legacy and current metadata exist; resolve the conflict first.")
+        return (LEGACY_MANIFEST, LEGACY_LOCKFILE) if legacy else (MANIFEST, LOCKFILE)
+
+    def configure(self, track: bool) -> dict:
+        with self.locked():
+            manifest, pins = self.load()
+            manifest["track"] = track
+            return self.apply(manifest, pins, "config")
+
     def load(self) -> tuple[dict, dict]:
-        manifest = read_json(self.root / MANIFEST)
+        manifest_path, lock_path = self.metadata_paths()
+        manifest = read_json(safe_child(self.root, manifest_path))
         if manifest is None:
             raise SkillsError("Project is not initialized. Run dskills init --agent <name>.")
         validate_manifest(manifest)
-        lock = read_json(self.root / LOCKFILE)
+        lock = read_json(safe_child(self.root, lock_path))
         if not isinstance(lock, dict) or lock.get("schema_version") != 1:
             raise SkillsError("Missing or unsupported lockfile; restore it from version control.")
         pins = lock.get("skills")
@@ -115,12 +136,23 @@ class Project:
                 raise SkillsError("Invalid owned skill mode.")
         return state
 
-    def initialize(self, agents: list[str], mode: str, home: Path | None = None) -> dict:
+    def initialize(
+        self, agents: list[str], mode: str, home: Path | None = None, *, track: bool = False
+    ) -> dict:
         with self.locked():
-            if exists(self.root / MANIFEST) or exists(self.root / LOCKFILE):
+            if any(
+                exists(self.root / p)
+                for p in (MANIFEST, LOCKFILE, LEGACY_MANIFEST, LEGACY_LOCKFILE)
+            ):
                 raise SkillsError("Project already has a manifest or lockfile; use sync or plug.")
             agents = select_agents(agents or detect_agents(self.root, home or Path.home()))
-            manifest = {"schema_version": 1, "agents": agents, "mode": mode, "skills": []}
+            manifest = {
+                "schema_version": 1,
+                "agents": agents,
+                "mode": mode,
+                "skills": [],
+                "track": track,
+            }
             return self.apply(manifest, {}, "init", initial=True)
 
     def pin(self, skill_id: str, revision: str | None = None) -> dict:
@@ -251,23 +283,37 @@ class Project:
                 changes[step["path"]] = (
                     ("symlink", str(source)) if output["mode"] == "symlink" else source
                 )
+        manifest_path, lock_path = self.metadata_paths()
+        legacy = manifest_path == LEGACY_MANIFEST
         previous = (
             None
             if initial
             else {
-                "manifest": read_json(self.root / MANIFEST),
-                "lock": read_json(self.root / LOCKFILE),
+                "manifest": read_json(self.root / manifest_path),
+                "lock": read_json(self.root / lock_path),
             }
         )
         new_lock = {"schema_version": 1, "skills": pins}
+        ignore_content = b"*\n"
+        if manifest.get("track", False):
+            ignore_content += b"!.gitignore\n!config.json\n!lock.json\n"
+        ignore_path = safe_child(self.root, IGNORE_FILE)
+        if ignore_path.is_symlink():
+            raise SkillsError("Refusing symlinked metadata ignore file.", "unsafe_path")
+        if not ignore_path.exists() or ignore_path.read_bytes() != ignore_content:
+            changes[IGNORE_FILE] = ignore_content
+        exclusions_changed = self.exclude_outputs(outputs)
         if (
             not plan
+            and not legacy
             and previous
             and previous["manifest"] == manifest
             and previous["lock"] == new_lock
             and old_state["outputs"] == outputs
         ):
-            return {**result, "changed": False}
+            if changes:
+                Transaction(self.root).apply(changes)
+            return {**result, "changed": exclusions_changed or bool(changes)}
         new_state = {
             "schema_version": 1,
             "outputs": outputs,
@@ -279,28 +325,72 @@ class Project:
                 {**previous, "action": action, "at": now()}
             )
             new_state["history"].append(snapshot)
+        if legacy:
+            changes[LEGACY_MANIFEST] = None
+            changes[LEGACY_LOCKFILE] = None
         changes[MANIFEST] = json_bytes(manifest)
         changes[LOCKFILE] = json_bytes(new_lock)
         changes[STATE] = json_bytes(new_state)
-        ignore = self.root / ".gitignore"
-        if ignore.is_symlink():
-            raise SkillsError("Refusing symlinked .gitignore.", "unsafe_path")
-        text = ignore.read_text(encoding="utf-8") if ignore.exists() else ""
-        entries = ["/.dynamic-skills/", *(f"/{relative}/" for relative in sorted(outputs))]
-        missing = [entry for entry in entries if entry not in text.splitlines()]
-        if missing:
-            changes[".gitignore"] = (
-                text
-                + ("\n" if text and not text.endswith("\n") else "")
-                + "\n".join(missing)
-                + "\n"
-            ).encode()
         Transaction(self.root).apply(changes)
         for skill_id in sorted(set(pins) | set((previous or {}).get("lock", {}).get("skills", {}))):
             old_pin = (previous or {}).get("lock", {}).get("skills", {}).get(skill_id)
             if old_pin != pins.get(skill_id):
                 self.pool.event(action, skill_id, str(self.root))
         return {**result, "changed": True}
+
+    def exclude_outputs(self, outputs: dict) -> bool:
+        """Keep generated files local without editing the project's shared ignore rules."""
+        if not outputs:
+            return False
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(self.root), "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            return False
+        if result.returncode:
+            if "not a git repository" in result.stderr.lower():
+                return False
+            raise SkillsError(f"Cannot locate Git repository: {result.stderr.strip()}")
+        repository = Path(result.stdout.strip()).resolve()
+        result = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "--git-path", "info/exclude"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode:
+            raise SkillsError(f"Cannot locate Git excludes: {result.stderr.strip()}")
+        exclude = Path(result.stdout.strip())
+        if not exclude.is_absolute():
+            exclude = self.root / exclude
+        if exclude.is_symlink():
+            raise SkillsError("Refusing symlinked Git exclude file.", "unsafe_path")
+        text = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+        prefix = self.root.relative_to(repository).as_posix()
+        prefix = "" if prefix == "." else prefix + "/"
+        paths = [relative + "/" for relative in sorted(outputs)]
+        # Quote Git wildmatch metacharacters, including spaces in project directory names.
+        entries = [
+            "/" + "".join("\\" + char if char in "\\*?[] !#" else char for char in prefix + path)
+            for path in paths
+        ]
+        missing = [entry for entry in entries if entry not in text.splitlines()]
+        if not missing:
+            return False
+        atomic_write(
+            exclude,
+            (
+                text
+                + ("\n" if text and not text.endswith("\n") else "")
+                + "\n".join(missing)
+                + "\n"
+            ).encode(),
+        )
+        return True
 
     def undo(self, dry_run=False) -> dict:
         with self.locked():
