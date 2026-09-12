@@ -3,6 +3,7 @@
 </p>
 <p align="center">
   <a href="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml"><img src="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://pypi.org/project/dynamic-skills/"><img src="https://img.shields.io/pypi/v/dynamic-skills" alt="PyPI version" /></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB" alt="Python 3.11+" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-172b2b" alt="MIT license" /></a>
 </p>
@@ -83,7 +84,73 @@ using `uv tool install --force dynamic-skills==<version>` or
 project metadata before upgrading between Alpha versions. Report reproducible
 problems through [GitHub Issues](https://github.com/M1racleShih/dynamic-skills/issues).
 
-## Get started
+## Recommended: use dskills through your agent
+
+**dskills comes with its own skill, `dynamic-skills`.** It teaches your agent how
+to search the local pool, read relevant skills on demand, and manage the current
+project's selection. We recommend making requests to your agent in plain language
+and letting it use dskills for you. You can still run every command yourself if
+you prefer hands-on control or want to check the model's decisions.
+
+After installing the CLI, expose the built-in skill in your project:
+
+```sh
+# For a new project, choose your agent(s); use codex, claude, kimi or pi.
+dskills init --agent codex
+# For an already initialized project, run just this command:
+dskills bridge
+```
+
+The bridge activates the `dynamic-skills` skill for the agents configured in that
+project. Your agent needs access to the installed `dskills` command and permission
+to run it. Refresh or restart the agent if the skill is not visible; see
+[agent compatibility and session refresh](#agent-compatibility-and-session-refresh).
+The bridge includes the manager skill, not a collection of specialist skills:
+import the skills you want to use into your pool first.
+
+Try these prompts from your project directory. Mention the `dynamic-skills` skill
+explicitly, or select it through your agent's skill picker if one is available.
+Replace example paths and names with your own.
+
+**Find a skill and use it for a task:**
+
+```text
+Use the dynamic-skills skill to find a code-review skill in my local pool.
+Read the best match and follow its instructions to review my current changes.
+Report your findings without editing files. If no suitable skill exists, tell me.
+```
+
+**Import and activate a skill:**
+
+```text
+Use the dynamic-skills skill to import /path/to/my-skill into my pool.
+Preview activating it in this project and explain any conflicts. If the preview
+is clear, activate it, verify the project status, and tell me whether my agent
+needs a refresh. Preserve any existing local edits.
+```
+
+**Build a reusable combination:**
+
+```text
+Use the dynamic-skills skill to inspect the frontend skills in my pool and
+recommend a small package for this project. Show me the member IDs and why each
+one belongs. Wait for my approval before creating or applying the package.
+```
+
+**Clean up after a task:**
+
+```text
+Use the dynamic-skills skill to inspect this project's active skills. Suggest
+which ones can be unplugged now that the frontend task is finished, and preview
+the changes. Wait for my approval before applying them, keep the pool versions,
+and explain how to undo the change.
+```
+
+The agent uses the same CLI and conflict checks as a manual workflow. You choose
+whether a request authorizes changes or asks only for a preview. Reading a skill
+does not execute its scripts or grant the agent additional permissions.
+
+## Get started with the CLI
 
 From your project directory:
 
