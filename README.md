@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
+  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
 </p>
 <p align="center">
   <a href="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml"><img src="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -30,7 +30,7 @@ dskills plug code-review              # Activate it for this project
 dskills unplug code-review            # Deactivate here; keep the pool version
 ```
 
-![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](assets/memory-analogy.svg)
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/memory-analogy.svg)
 
 `plug` and `unplug` are analogous to requesting and releasing a resource. The pool
 keeps your collection available; the project chooses its working set. A lockfile
@@ -40,7 +40,7 @@ The analogy has a boundary: activation makes a skill discoverable, and removal
 does not erase instructions already read into a conversation. dskills manages
 skill availability and versions; your agent controls context loading.
 
-![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](assets/skill-lifecycle.svg)
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/skill-lifecycle.svg)
 
 **Collect freely. Select deliberately. Undo when needed.** If this is how you want
 to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
@@ -58,17 +58,30 @@ account, background daemon, telemetry or model subscription required.
 Requires Python 3.11+. Git is required for Git repository sources.
 
 ```sh
-uv tool install git+https://github.com/M1racleShih/dynamic-skills.git
+uv tool install dynamic-skills==0.1.0
 ```
 
 Or use pipx:
 
 ```sh
-pipx install git+https://github.com/M1racleShih/dynamic-skills.git
+pipx install dynamic-skills==0.1.0
 ```
 
-Both `dskills` and `dynamic-skills` invoke the same CLI. The package has not yet
-been published to PyPI; install from this repository or a locally built wheel.
+Both `dskills` and `dynamic-skills` invoke the same CLI. Packages are distributed on
+[PyPI](https://pypi.org/project/dynamic-skills/); wheels and source archives are also
+attached to [GitHub releases](https://github.com/M1racleShih/dynamic-skills/releases).
+To install this release directly from Git:
+
+```sh
+uv tool install git+https://github.com/M1racleShih/dynamic-skills.git@v0.1.0
+```
+
+Review the [changelog](https://github.com/M1racleShih/dynamic-skills/blob/main/CHANGELOG.md)
+before upgrading. To select a later release, reinstall with its explicit version
+using `uv tool install --force dynamic-skills==<version>` or
+`pipx install --force dynamic-skills==<version>`. Keep backups of your pool and
+project metadata before upgrading between Alpha versions. Report reproducible
+problems through [GitHub Issues](https://github.com/M1racleShih/dynamic-skills/issues).
 
 ## Get started
 
@@ -479,8 +492,8 @@ git clone https://github.com/M1racleShih/dynamic-skills.git
 cd dynamic-skills
 uv sync --group dev
 uv run pytest
-uv run ruff check src tests
-uv run ruff format --check src tests
+uv run ruff check src tests scripts
+uv run ruff format --check src tests scripts
 uv build
 ```
 
@@ -507,4 +520,4 @@ but different needs.
 
 ## License
 
-[MIT](LICENSE). Imported skills retain their original licenses and provenance.
+[MIT](https://github.com/M1racleShih/dynamic-skills/blob/main/LICENSE). Imported skills retain their original licenses and provenance.
