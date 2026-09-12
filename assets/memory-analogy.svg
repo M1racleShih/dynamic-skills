@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="535" viewBox="0 0 1000 535" role="img" aria-labelledby="title desc">
+  <title id="title">A shared lifecycle: acquire, use, release</title>
+  <desc id="desc">Parallel workflows compare C/C++ memory allocation with dskills. malloc or new requests memory, the program uses it, and free or delete releases the allocation. dskills plug activates a pinned skill, the agent discovers and reads it when needed, and unplug removes project activation. Pool versions remain available, and instructions already read into a conversation remain.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#526777"/></marker>
+    <style>
+      text {font-family: Arial, Helvetica, sans-serif; fill: #172b2b;}
+      .title {font-size: 25px; font-weight: 700;}
+      .heading {font-size: 21px; font-weight: 700;}
+      .code {font-family: DejaVu Sans Mono, monospace; font-size: 20px; font-weight: 700;}
+      .body {font-size: 17px;}
+      .note {font-size: 16px; fill: #526777;}
+      .arrow {fill: none; stroke: #526777; stroke-width: 2; marker-end: url(#arrow);}
+    </style>
+  </defs>
+  <rect width="1000" height="535" rx="18" fill="#ffffff"/>
+  <text x="32" y="43" class="title">A shared lifecycle: acquire, use, release</text>
+  <text x="32" y="73" class="body">Bring a resource into use when needed. End its use explicitly.</text>
+  <rect x="180" y="96" width="370" height="336" rx="14" fill="#f0f5fb" stroke="#b2c8df"/>
+  <rect x="580" y="96" width="388" height="336" rx="14" fill="#eef8f2" stroke="#b5d4c2"/>
+  <text x="365" y="131" text-anchor="middle" class="heading">C/C++ · memory</text>
+  <text x="774" y="131" text-anchor="middle" class="heading">dskills · skill availability</text>
+  <g class="heading">
+    <text x="32" y="193">1  Acquire</text>
+    <text x="32" y="289">2  Use</text>
+    <text x="32" y="385">3  Release</text>
+  </g>
+  <g fill="#ffffff" stroke="#719ac2">
+    <rect x="200" y="150" width="330" height="70" rx="9"/>
+    <rect x="200" y="246" width="330" height="70" rx="9"/>
+    <rect x="200" y="342" width="330" height="70" rx="9"/>
+  </g>
+  <g fill="#ffffff" stroke="#78aa91">
+    <rect x="600" y="150" width="348" height="70" rx="9"/>
+    <rect x="600" y="246" width="348" height="70" rx="9"/>
+    <rect x="600" y="342" width="348" height="70" rx="9"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="365" y="178" class="code">malloc / new</text>
+    <text x="365" y="204" class="note">Request memory for the task</text>
+    <text x="365" y="274" class="heading">Read / write memory</text>
+    <text x="365" y="300" class="note">The program uses the allocation</text>
+    <text x="365" y="370" class="code">free / delete</text>
+    <text x="365" y="396" class="note">Release the allocation</text>
+    <text x="774" y="178" class="code">dskills plug</text>
+    <text x="774" y="204" class="note">Activate a pinned skill for the project</text>
+    <text x="774" y="274" class="heading">Agent discovers / reads</text>
+    <text x="774" y="300" class="note">The agent controls context loading</text>
+    <text x="774" y="370" class="code">dskills unplug</text>
+    <text x="774" y="396" class="note">Remove project activation</text>
+  </g>
+  <path d="M365 220V242" class="arrow"/><path d="M365 316V338" class="arrow"/>
+  <path d="M774 220V242" class="arrow"/><path d="M774 316V338" class="arrow"/>
+  <text x="32" y="465" class="heading">The boundary of the analogy</text>
+  <text x="32" y="492" class="body">unplug keeps pool versions available. It does not erase instructions already read into a conversation.</text>
+  <text x="32" y="518" class="note">This compares resource lifecycles; it does not imply that dskills allocates or frees model context.</text>
+</svg>

@@ -7,12 +7,44 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-172b2b" alt="MIT license" /></a>
 </p>
 
-**A versioned skill pool. Just the skills your project needs.**
+**Keep every skill. Activate only what you need.**
 
-Collecting skills is easy. Keeping every agent's skill list useful takes more care.
-Dynamic Skills stores your library outside native discovery directories, then
-activates a small, explicit selection in each project. Change that selection as
-the work changes, without losing the skills you collected.
+Your skill collection grows. Your current task only needs a few. When everything
+lives in global discovery directories, unrelated skills compete for attention,
+projects inherit the same catalog, and updates can change instructions under
+ongoing work. Manually copying skills between agents adds more versions to maintain.
+
+Dynamic Skills (`dskills`) gives your collection a **versioned local pool** and each
+project a **small, explicit selection**. Import once, pin the skills you need, and
+change that selection as the work changes.
+
+### Think dynamic memory allocation, applied to skills
+
+In C/C++, you request memory when you need it and release it when its job is done.
+dskills applies that lifecycle idea to the skills exposed in an initialized project:
+
+```sh
+dskills install /path/to/code-review   # Keep a skill in the pool
+dskills plug code-review              # Activate it for this project
+# Work with the skill through your agent.
+dskills unplug code-review            # Deactivate here; keep the pool version
+```
+
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](assets/memory-analogy.svg)
+
+`plug` and `unplug` are analogous to requesting and releasing a resource. The pool
+keeps your collection available; the project chooses its working set. A lockfile
+pins exact versions, so updating the pool does not silently update other projects.
+
+The analogy has a boundary: activation makes a skill discoverable, and removal
+does not erase instructions already read into a conversation. dskills manages
+skill availability and versions; your agent controls context loading.
+
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](assets/skill-lifecycle.svg)
+
+**Collect freely. Select deliberately. Undo when needed.** If this is how you want
+to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
+to support its development.
 
 Built for **Codex, Claude Code, Kimi Code and Pi**. Local first, CLI first, no server,
 account, background daemon, telemetry or model subscription required.
@@ -82,16 +114,9 @@ deliberately not loaded.
 
 ## One pool, an explicit project selection
 
-```mermaid
-flowchart LR
-  Sources[Local and Git sources] --> Pool[Versioned skill pool]
-  Pool --> Pins[Project selection + lockfile]
-  Pins --> Codex[.agents/skills]
-  Pins --> Claude[.claude/skills]
-  Pins --> Kimi[.kimi/skills]
-  Pins --> Pi[.pi/skills]
-  Pool --> Read[On-demand CLI reads]
-```
+Local and Git sources feed the pool. Each project's selection and lockfile determine
+what gets copied (or linked) into its agents' native skill directories. The optional
+bridge also lets an agent search and read pool skills on demand.
 
 - **Keep versions separate from activation.** Pool updates never silently advance
   another project's pinned skill.

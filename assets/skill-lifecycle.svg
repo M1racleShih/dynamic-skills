@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="590" viewBox="0 0 1000 590" role="img" aria-labelledby="title desc">
+  <title id="title">Keep the pool. Choose the working set.</title>
+  <desc id="desc">A global catalog exposes unrelated skills across projects. With dskills, local and Git sources enter a versioned pool outside native discovery. Plug pins selected skills for a project; unplug removes project outputs while retaining the pool. Sync produces native agent directories. Search and read offer a separate on-demand path. Removing skills does not erase existing conversation context.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#526777"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #172b2b; }
+      .heading { font-size: 23px; font-weight: 700; }
+      .label { font-size: 18px; font-weight: 700; }
+      .body { font-size: 16px; }
+      .note { font-size: 15px; fill: #526777; }
+      .flow { fill: none; stroke: #526777; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1000" height="590" rx="18" fill="#ffffff"/>
+  <text x="32" y="43" class="heading">Keep the pool. Choose the working set.</text>
+  <text x="32" y="70" class="body">Collect once. Activate per project. Keep exact versions.</text>
+
+  <rect x="24" y="96" width="250" height="429" rx="14" fill="#fff6f3" stroke="#e3bfb4"/>
+  <text x="44" y="129" class="label">Global accumulation</text>
+  <text x="44" y="157" class="note">Every project sees the catalog</text>
+  <rect x="44" y="179" width="210" height="146" rx="10" fill="#ffffff" stroke="#d7aaa0"/>
+  <text x="60" y="206" class="label">Global skills</text>
+  <g class="body">
+    <text x="60" y="237">Review</text><text x="158" y="237">Deploy</text>
+    <text x="60" y="270">Design</text><text x="158" y="270">Testing</text>
+    <text x="60" y="303">Docs</text><text x="158" y="303">+ more</text>
+  </g>
+  <path d="M149 325V369H98V397" class="flow"/>
+  <path d="M149 369H204V397" class="flow"/>
+  <rect x="44" y="405" width="100" height="49" rx="8" fill="#f6e1da"/>
+  <rect x="154" y="405" width="100" height="49" rx="8" fill="#f6e1da"/>
+  <text x="94" y="435" text-anchor="middle" class="body">Project A</text>
+  <text x="204" y="435" text-anchor="middle" class="body">Project B</text>
+  <text x="44" y="494" class="note">Different tasks, same catalog</text>
+
+  <rect x="294" y="96" width="682" height="429" rx="14" fill="#f8fafb" stroke="#d4dfe4"/>
+  <text x="316" y="129" class="label">Explicit selection with dskills</text>
+  <text x="316" y="157" class="note">Available in the pool ≠ activated in the project</text>
+  <text x="429" y="193" text-anchor="middle" class="body">Local / Git sources</text>
+  <path d="M429 204V241" class="flow"/>
+  <text x="444" y="229" class="note">install</text>
+
+  <rect x="316" y="250" width="226" height="124" rx="10" fill="#eaf2fb" stroke="#719ac2"/>
+  <text x="334" y="279" class="label">Versioned pool</text>
+  <text x="334" y="307" class="body">Complete skill snapshots</text>
+  <text x="334" y="333" class="body">Outside native discovery</text>
+  <text x="334" y="357" class="note">Versions remain available</text>
+
+  <path d="M542 287H707" class="flow"/>
+  <text x="624" y="276" text-anchor="middle" class="label">plug</text>
+  <text x="624" y="319" text-anchor="middle" class="note">unplug: remove</text>
+  <text x="624" y="341" text-anchor="middle" class="note">project output only</text>
+
+  <rect x="716" y="250" width="238" height="124" rx="10" fill="#e9f6ef" stroke="#78aa91"/>
+  <text x="734" y="279" class="label">Project + lockfile</text>
+  <text x="734" y="311" class="body">Review · pinned hash</text>
+  <text x="734" y="337" class="body">Testing · pinned hash</text>
+  <text x="734" y="361" class="note">Only the selected skills</text>
+
+  <path d="M429 374V436" class="flow"/>
+  <text x="443" y="410" class="note">search / read</text>
+  <rect x="316" y="444" width="226" height="56" rx="9" fill="#ffffff" stroke="#719ac2"/>
+  <text x="429" y="478" text-anchor="middle" class="body">On-demand instructions</text>
+
+  <path d="M835 374V436" class="flow"/>
+  <text x="850" y="410" class="note">sync</text>
+  <rect x="653" y="444" width="301" height="56" rx="9" fill="#ffffff" stroke="#78aa91"/>
+  <text x="803" y="468" text-anchor="middle" class="body">Native skill directories</text>
+  <text x="803" y="489" text-anchor="middle" class="note">Codex · Claude · Kimi · Pi</text>
+
+  <text x="32" y="562" class="note">Lifecycle analogy: request when needed, release when finished. Existing conversation context remains.</text>
+</svg>
