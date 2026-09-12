@@ -52,12 +52,19 @@ def emit(data):
         click.echo(json.dumps({"schema_version": 1, "ok": True, "data": data}))
         return
     console = Console()
+    if isinstance(data, dict) and "categories" in data and "untagged" in data:
+        emit(data["categories"])
+        console.print(Text(f"Untagged skills: {data['untagged']}"))
+        return
     if isinstance(data, dict) and "plan" in data:
         preview = data.get("dry_run", False) or data.get("applied") is False
         label = "Preview" if preview else data.get("action", "Migration").capitalize()
         console.print(Text(f"dynamic-skills · {label}", style="bold cyan"))
         if data.get("project"):
             console.print(Text(data["project"], style="dim"))
+        if data.get("packages"):
+            console.print(Text(f"Packages: {', '.join(data['packages'])}"))
+            console.print(Text(f"Keeping existing pins: {', '.join(data['kept']) or 'none'}"))
         table = Table(box=None, header_style="bold", padding=(0, 2))
         for title in ("Action", "Skill / path", "Version / reason"):
             table.add_column(title, overflow="fold")
@@ -163,18 +170,24 @@ def install(source, subdir, ref, skill_id, tags, dry_run):
 
 @cli.command("list")
 @click.option("--tag")
-def list_skills(tag):
+@click.option("--untagged", is_flag=True, help="Show only skills without categories.")
+def list_skills(tag, untagged):
     """List pool skills, versions and categories."""
-    emit(pool().search(tag=tag))
+    if tag is not None and untagged:
+        raise click.UsageError("Choose --tag or --untagged, not both.")
+    emit(pool().search(tag=tag, untagged=untagged))
 
 
 @cli.command()
 @click.argument("query", default="")
 @click.option("--tag")
+@click.option("--untagged", is_flag=True, help="Search only skills without categories.")
 @click.option("--limit", type=click.IntRange(1, 1000), default=20, show_default=True)
-def search(query, tag, limit):
+def search(query, tag, untagged, limit):
     """Search IDs, descriptions and tags locally (all words must match)."""
-    emit(pool().search(query, tag)[:limit])
+    if tag is not None and untagged:
+        raise click.UsageError("Choose --tag or --untagged, not both.")
+    emit(pool().search(query, tag, untagged=untagged)[:limit])
 
 
 @cli.command()
@@ -244,6 +257,33 @@ def rollback(skill_id, revision):
 def tag(skill_id, tags, remove):
     """Add or remove explicit skill categories."""
     emit(pool().tag(skill_id, tags, remove))
+
+
+@cli.group()
+def category():
+    """Browse categories and assign one tag to several pool skills."""
+
+
+@category.command("list")
+def category_list():
+    """Count skills in each tag, plus skills without any tags."""
+    emit(pool().categories())
+
+
+@category.command("add")
+@click.argument("tag")
+@click.argument("skills", nargs=-1, required=True)
+def category_add(tag, skills):
+    """Add a category to all listed skills atomically."""
+    emit(pool().tag_many(list(skills), (tag,)))
+
+
+@category.command("remove")
+@click.argument("tag")
+@click.argument("skills", nargs=-1, required=True)
+def category_remove(tag, skills):
+    """Remove a category from all listed skills atomically."""
+    emit(pool().tag_many(list(skills), (tag,), remove=True))
 
 
 @cli.command()
@@ -338,6 +378,66 @@ def undo(dry_run, project_path):
 def recover(project_path):
     """Roll back an interrupted project transaction without overwriting new edits."""
     emit(Project(project_path, pool()).recover())
+
+
+@cli.group()
+def package():
+    """Compose reusable pool skill ID lists; apply without advancing existing pins."""
+
+
+@package.command("create")
+@click.argument("name")
+@click.argument("skills", nargs=-1)
+@click.option("--from-tag", "from_tags", multiple=True, help="Snapshot matching IDs; repeatable.")
+@click.option("--description", default="", help="Describe when to use this package.")
+def package_create(name, skills, from_tags, description):
+    """Create a nonempty package from IDs and/or the union of matching categories."""
+    emit(pool().create_package(name, list(skills), from_tags, description))
+
+
+@package.command("list")
+def package_list():
+    """List locally saved packages and their members."""
+    emit(pool().list_packages())
+
+
+@package.command("show")
+@click.argument("name")
+def package_show(name):
+    """Show a package's description and skill ID pointers, not pinned versions."""
+    emit(pool().get_package(name))
+
+
+@package.command("add")
+@click.argument("name")
+@click.argument("skills", nargs=-1, required=True)
+def package_add(name, skills):
+    """Add existing pool skills to a package."""
+    emit(pool().edit_package(name, list(skills)))
+
+
+@package.command("remove")
+@click.argument("name")
+@click.argument("skills", nargs=-1, required=True)
+def package_remove(name, skills):
+    """Remove package members, keeping at least one; projects are unaffected."""
+    emit(pool().edit_package(name, list(skills), remove=True))
+
+
+@package.command("delete")
+@click.argument("name")
+def package_delete(name):
+    """Delete only the package definition, not its skills or project selections."""
+    emit(pool().delete_package(name))
+
+
+@package.command("apply")
+@click.argument("names", nargs=-1, required=True)
+@click.option("--dry-run", is_flag=True)
+@project_option
+def package_apply(names, dry_run, project_path):
+    """Add missing members to an initialized project in one undoable transaction."""
+    emit(Project(project_path, pool()).apply_packages(list(names), dry_run=dry_run))
 
 
 @cli.group()

@@ -267,6 +267,80 @@ supports directory links; Windows may require Developer Mode or link privileges.
 Changing `mode` or `agents` in the manifest followed by `sync` reconciles the outputs.
 Use `plug` and `unplug` to change selected skills and their lockfile entries together.
 
+## Organize the pool with categories
+
+Categories reuse skill tags: a skill can belong to both `frontend` and `testing`.
+Inspect categories and find skills that still need organizing:
+
+```sh
+dskills category list
+dskills list --tag frontend
+dskills list --untagged
+dskills search "testing" --untagged
+dskills category add frontend react-skill css-skill
+dskills category remove frontend css-skill
+```
+
+Replace the example skill IDs with IDs from `dskills list`. Batch category changes
+validate every ID before saving; an unknown ID leaves the entire batch unchanged.
+The existing `tag <skill-id> <tag>...` command still manages several tags on one
+skill. Categories change only pool metadata, never skill content or project copies.
+Counts include a skill in each of its tags; untagged skills are counted separately.
+`--tag` and `--untagged` are mutually exclusive. Classification is explicit, not
+automatically inferred from skill names or descriptions.
+
+## Reusable skill packages
+
+Packages are user-defined, local lists of **pool skill IDs**, not copies of skills
+or pinned project configurations. Compose one by hand, or capture the skills
+currently in a category:
+
+```sh
+dskills package create frontend react-skill css-skill --description "Frontend tools"
+dskills package create backend --from-tag backend
+dskills package list
+dskills package show frontend
+dskills package add frontend accessibility-skill
+dskills package remove frontend css-skill
+```
+
+`--from-tag` is repeatable. Its matches and any explicit IDs are combined and
+deduplicated. This is a **one-time membership snapshot**: changing tags later does
+not change an existing package. Packages must contain at least one existing pool
+skill; unknown IDs, tags with no matches, duplicate package names and edits that
+would empty a package are rejected without partial changes. Package names use the
+same lowercase-letter, digit and hyphen rules as skill IDs.
+
+In any project initialized with `dskills init`, apply one or more packages:
+
+```sh
+dskills package apply frontend backend --dry-run
+dskills package apply frontend backend
+dskills undo
+```
+
+Use `--project /path/to/project` to target another initialized project. Application
+expands the packages into individual skills and commits **one undoable project
+transaction**, not a sequence of independent installations:
+
+- Missing members are pinned to the pool's current versions at application time.
+- Already selected members keep their exact project pins, even if the pool has
+  newer versions. Use the existing `plug <skill-id>...` command to explicitly
+  advance them.
+- Other selected skills, agents, distribution mode and tracking settings stay
+  unchanged. Overlapping package members are handled once.
+- Existing conflict protection, dry-run limitations and transaction recovery
+  apply. Repeating an application with unchanged outputs creates no new undo entry.
+
+The project still stores individual skill IDs and pins, not a live subscription
+to a package. Editing or deleting a package never changes projects that used it;
+use `unplug` to remove individual project skills. `dskills package delete frontend`
+deletes only that package definition and leaves all pool skills intact.
+
+Definitions live in the selected pool and follow `--home` / `DYNAMIC_SKILLS_HOME`.
+There are no built-in frontend/backend member lists, nested packages or package
+sharing files; build combinations from the skills already in your own pool.
+
 ## Reusable presets
 
 ```sh
@@ -280,6 +354,10 @@ dskills undo
 Presets are local, version-pinned snapshots of the selection, agents and mode.
 Applying one **replaces** the current project configuration. `preset remove` deletes
 only the saved preset. It does not alter projects that previously used it.
+
+Use **categories** to organize and discover skills, **packages** to add a reusable
+combination while preserving existing pins, and **presets** to replace a project
+configuration with an exact saved setup. Package and preset names are independent.
 
 ## An interface your agent can drive
 

@@ -179,6 +179,19 @@ class Project:
             manifest["skills"] = sorted(pins)
             return self.apply(manifest, pins, "unplug", dry_run=dry_run)
 
+    def apply_packages(self, names: list[str], dry_run=False) -> dict:
+        with self.locked():
+            manifest, pins = self.load()
+            with self.pool.lock:
+                members = self.pool.resolve_packages(names)
+                added = sorted(set(members) - set(pins))
+                kept = sorted(set(members) & set(pins))
+                for skill_id in added:
+                    pins[skill_id] = self.pin(skill_id)
+            manifest["skills"] = sorted(pins)
+            result = self.apply(manifest, pins, "package", dry_run=dry_run)
+            return {**result, "packages": sorted(set(names)), "added": added, "kept": kept}
+
     def sync(self, dry_run=False) -> dict:
         with self.locked():
             manifest, pins = self.load()

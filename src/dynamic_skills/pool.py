@@ -30,6 +30,18 @@ def now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def _checked_ids(ids: list[str], catalog: dict) -> list[str]:
+    for skill_id in ids:
+        valid_name(skill_id)
+    members = sorted(set(ids))
+    if not members:
+        raise SkillsError("At least one skill ID is required; packages cannot be empty.")
+    missing = sorted(set(members) - set(catalog["skills"]))
+    if missing:
+        raise SkillsError(f"Unknown pool skills: {', '.join(missing)}.", "not_found")
+    return members
+
+
 class Pool:
     def __init__(self, root: Path | None = None):
         self.root = (
@@ -68,6 +80,22 @@ class Pool:
             if not isinstance(item, dict) or not isinstance(item.get("versions"), list):
                 raise SkillsError("Invalid skill version history in pool catalog.")
             valid_digest(item.get("current"))
+        packages = value.setdefault("packages", {})
+        if not isinstance(packages, dict):
+            raise SkillsError("Invalid packages in pool catalog.")
+        for name, package in packages.items():
+            valid_name(name)
+            if (
+                not isinstance(package, dict)
+                or not isinstance(package.get("description"), str)
+                or not isinstance(package.get("skills"), list)
+                or not package["skills"]
+            ):
+                raise SkillsError(f"Invalid package definition: {name}.")
+            for skill_id in package["skills"]:
+                valid_name(skill_id)
+            if len(set(package["skills"])) != len(package["skills"]):
+                raise SkillsError(f"Duplicate package members: {name}.")
         return value
 
     def save(self, index: dict):
@@ -243,26 +271,119 @@ class Pool:
             return {"id": skill_id, **version}
 
     def tag(self, skill_id: str, tags: tuple, remove: bool = False) -> dict:
+        return self.tag_many([skill_id], tags, remove)[0]
+
+    def tag_many(self, ids: list[str], tags: tuple, remove: bool = False) -> list[dict]:
         with self.lock:
             data = self.index()
-            item = self.get(skill_id)
-            item["tags"] = sorted(
-                set(item["tags"]) - set(tags) if remove else set(item["tags"]) | set(tags)
-            )
-            data["skills"][skill_id] = item
+            members = _checked_ids(ids, data)
+            for skill_id in members:
+                item = data["skills"][skill_id]
+                item["tags"] = sorted(
+                    set(item["tags"]) - set(tags) if remove else set(item["tags"]) | set(tags)
+                )
             self.save(data)
-            return item
+            return [data["skills"][skill_id] for skill_id in members]
 
-    def search(self, query: str = "", tag: str | None = None) -> list[dict]:
+    def categories(self) -> dict:
+        counts = {}
+        untagged = 0
+        for item in self.index()["skills"].values():
+            if not item["tags"]:
+                untagged += 1
+            for tag in set(item["tags"]):
+                counts[tag] = counts.get(tag, 0) + 1
+        return {
+            "categories": [{"tag": tag, "count": count} for tag, count in sorted(counts.items())],
+            "untagged": untagged,
+        }
+
+    def search(
+        self, query: str = "", tag: str | None = None, *, untagged: bool = False
+    ) -> list[dict]:
+        if tag is not None and untagged:
+            raise SkillsError("Choose --tag or --untagged, not both.")
         terms = query.casefold().split()
         results = []
         for item in self.index()["skills"].values():
+            if untagged and item["tags"]:
+                continue
             haystack = " ".join(
                 [item["id"], item["name"], item["description"], *item["tags"]]
             ).casefold()
             if all(term in haystack for term in terms) and (not tag or tag in item["tags"]):
                 results.append({k: v for k, v in item.items() if k != "versions"})
         return sorted(results, key=lambda item: item["id"])
+
+    def create_package(
+        self, name: str, ids: list[str], from_tags: tuple = (), description: str = ""
+    ) -> dict:
+        valid_name(name)
+        if not isinstance(description, str):
+            raise SkillsError("Package description must be a string.")
+        with self.lock:
+            data = self.index()
+            if name in data["packages"]:
+                raise SkillsError(
+                    f"Package already exists: {name}. Use add/remove.", "name_conflict"
+                )
+            members = list(ids)
+            for tag in from_tags:
+                matches = [key for key, item in data["skills"].items() if tag in item["tags"]]
+                if not matches:
+                    raise SkillsError(f"No pool skills have tag: {tag}.", "not_found")
+                members.extend(matches)
+            package = {"description": description, "skills": _checked_ids(members, data)}
+            data["packages"][name] = package
+            self.save(data)
+            return {"name": name, **package}
+
+    def get_package(self, name: str) -> dict:
+        package = self.index()["packages"].get(valid_name(name))
+        if package is None:
+            raise SkillsError(f"Unknown package: {name}. Use dskills package list.", "not_found")
+        return {"name": name, **package}
+
+    def list_packages(self) -> list[dict]:
+        return [
+            {"name": name, **package} for name, package in sorted(self.index()["packages"].items())
+        ]
+
+    def edit_package(self, name: str, ids: list[str], remove: bool = False) -> dict:
+        with self.lock:
+            data = self.index()
+            package = self.get_package(name)
+            members = set(_checked_ids(ids, data))
+            existing = set(package["skills"])
+            if remove and members - existing:
+                raise SkillsError(
+                    f"Skills are not in package {name}: {', '.join(sorted(members - existing))}.",
+                    "not_found",
+                )
+            package["skills"] = _checked_ids(
+                list(existing - members if remove else existing | members), data
+            )
+            data["packages"][name] = {
+                "description": package["description"],
+                "skills": package["skills"],
+            }
+            self.save(data)
+            return package
+
+    def delete_package(self, name: str) -> dict:
+        with self.lock:
+            data = self.index()
+            self.get_package(name)
+            del data["packages"][name]
+            self.save(data)
+            return {"deleted": name}
+
+    def resolve_packages(self, names: list[str]) -> list[str]:
+        with self.lock:
+            members = []
+            for name in names:
+                members.extend(self.get_package(name)["skills"])
+            return _checked_ids(members, self.index())
 
     def read(self, skill_id: str, revision: str | None = None) -> dict:
         version = self.version(skill_id, revision)
