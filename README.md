@@ -19,33 +19,16 @@ Dynamic Skills (`dskills`) gives your collection a **versioned local pool** and 
 project a **small, explicit selection**. Import once, pin the skills you need, and
 change that selection as the work changes.
 
-### Think dynamic memory allocation, applied to skills
+- **One pool, separate projects.** Keep your collection locally and choose each project's working set.
+- **Pinned versions.** Updating the pool does not silently update existing projects.
+- **Reversible changes.** Preview activation/removal, then undo when needed.
 
-In C/C++, you request memory when you need it and release it when its job is done.
-dskills applies that lifecycle idea to the skills exposed in an initialized project:
+[简体中文](README.zh-CN.md) · [Try the demo](#try-it-in-a-fresh-directory) · [CLI reference](#get-started-with-the-cli)
 
-```sh
-dskills install /path/to/code-review   # Keep a skill in the pool
-dskills plug code-review              # Activate it for this project
-# Work with the skill through your agent.
-dskills unplug code-review            # Deactivate here; keep the pool version
-```
+![Actual dskills 0.1.0 CLI output: activate gh-fix-ci, remove it, and undo; the panel shows the observed project directory state.](assets/quickstart.gif)
 
-![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/memory-analogy.svg)
-
-`plug` and `unplug` are analogous to requesting and releasing a resource. The pool
-keeps your collection available; the project chooses its working set. A lockfile
-pins exact versions, so updating the pool does not silently update other projects.
-
-The analogy has a boundary: activation makes a skill discoverable, and removal
-does not erase instructions already read into a conversation. dskills manages
-skill availability and versions; your agent controls context loading.
-
-![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/skill-lifecycle.svg)
-
-**Collect freely. Select deliberately. Undo when needed.** If this is how you want
-to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
-to support its development.
+The 40-second demo replays actual CLI output with pauses shortened. It shows
+filesystem availability, not an agent executing a skill. [Reproduction notes](docs/demo.md).
 
 Built for **Codex, Claude Code, Kimi Code and Pi**. Local first, CLI first, no server,
 account, background daemon, telemetry or model subscription required.
@@ -84,6 +67,44 @@ using `uv tool install --force dynamic-skills==<version>` or
 project metadata before upgrading between Alpha versions. Report reproducible
 problems through [GitHub Issues](https://github.com/M1racleShih/dynamic-skills/issues).
 
+## Try it in a fresh directory
+
+After installing, run this in a **new, empty directory**. The example imports a
+public skill at a fixed commit; it requires Git and network access, but no GitHub
+account for the import. Use a dedicated pool to keep the trial separate from your collection.
+The environment variable syntax below is for macOS/Linux shells; in PowerShell use
+`$env:DYNAMIC_SKILLS_HOME = "$PWD/.demo-pool"` instead of `export`.
+
+```sh
+mkdir dskills-quickstart
+cd dskills-quickstart
+export DYNAMIC_SKILLS_HOME="$PWD/.demo-pool"
+
+dskills install https://github.com/openai/skills.git \
+  --skill skills/.curated/gh-fix-ci \
+  --ref 49f948faa9258a0c61caceaf225e179651397431
+
+dskills init --agent codex
+dskills plug gh-fix-ci --dry-run
+dskills plug gh-fix-ci
+dskills status
+
+dskills unplug gh-fix-ci
+dskills undo
+dskills doctor
+```
+
+`plug` creates `.agents/skills/gh-fix-ci/SKILL.md`; `unplug` removes that project
+copy while keeping the pool version; `undo` restores it. To activate
+the built-in `dynamic-skills` manager skill as well, run `dskills bridge`. For Claude Code, use `--agent claude`
+and inspect `.claude/skills/`; `kimi` and `pi` are also supported.
+
+This exercises **skill management only**. It does not run the imported skill or
+inspect a real PR. Using `gh-fix-ci` for its actual task requires its own tools and
+authentication. Review imported instructions before asking an agent to follow them.
+Close the trial shell when finished, or run `unset DYNAMIC_SKILLS_HOME`
+(PowerShell: `Remove-Item Env:DYNAMIC_SKILLS_HOME`). The trial files stay in this directory.
+
 ## Recommended: use dskills through your agent
 
 **dskills comes with its own skill, `dynamic-skills`.** It teaches your agent how
@@ -97,7 +118,7 @@ After installing the CLI, expose the built-in skill in your project:
 ```sh
 # For a new project, choose your agent(s); use codex, claude, kimi or pi.
 dskills init --agent codex
-# For an already initialized project, run just this command:
+# Then activate the manager skill (also works in an initialized project):
 dskills bridge
 ```
 
@@ -191,6 +212,34 @@ can use your SSH agent and SSH configuration. Use SSH for private repositories;
 embedded URL passwords, Git hooks, submodules and skill installation scripts are
 not used. Custom global Git configuration, including credential helpers, is
 deliberately not loaded.
+
+### Think dynamic memory allocation, applied to skills
+
+In C/C++, you request memory when you need it and release it when its job is done.
+dskills applies that lifecycle idea to the skills exposed in an initialized project:
+
+```sh
+dskills install /path/to/code-review   # Keep a skill in the pool
+dskills plug code-review              # Activate it for this project
+# Work with the skill through your agent.
+dskills unplug code-review            # Deactivate here; keep the pool version
+```
+
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/memory-analogy.svg)
+
+`plug` and `unplug` are analogous to requesting and releasing a resource. The pool
+keeps your collection available; the project chooses its working set. A lockfile
+pins exact versions, so updating the pool does not silently update other projects.
+
+The analogy has a boundary: activation makes a skill discoverable, and removal
+does not erase instructions already read into a conversation. dskills manages
+skill availability and versions; your agent controls context loading.
+
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/skill-lifecycle.svg)
+
+**Collect freely. Select deliberately. Undo when needed.** If this is how you want
+to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
+to support its development.
 
 ## One pool, an explicit project selection
 
