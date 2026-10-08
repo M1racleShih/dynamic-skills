@@ -58,13 +58,13 @@ def test_pool_update_does_not_change_project_pin(project, make_skill):
 
 def test_unmanaged_collision_is_all_or_nothing(project, make_skill):
     project.pool.install(local(make_skill()))
-    project.initialize(["codex", "kimi"], "copy")
-    existing = project.root / ".kimi/skills/example"
+    project.initialize(["codex", "pi"], "copy")
+    existing = project.root / ".agents/skills/example"
     existing.mkdir(parents=True)
     (existing / "SKILL.md").write_text("user content")
     with pytest.raises(SkillsError, match="Unmanaged"):
         project.plug(["example"])
-    assert not (project.root / ".agents/skills/example").exists()
+    assert not (project.root / ".pi/skills/example").exists()
     assert not project.load()[1]
     assert (existing / "SKILL.md").read_text() == "user content"
 
@@ -164,11 +164,11 @@ def test_preset_pins_versions_and_is_undoable(project, make_skill):
 
 def test_failure_mid_transaction_restores_previous_outputs(project, make_skill, monkeypatch):
     project.pool.install(local(make_skill()))
-    project.initialize(["codex", "kimi"], "copy")
+    project.initialize(["codex", "claude"], "copy")
     original = os.replace
 
     def fail_on_second_output(source, destination):
-        if Path(destination).as_posix().endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".claude/skills/example"):
             raise OSError("disk full")
         return original(source, destination)
 
@@ -182,11 +182,11 @@ def test_failure_mid_transaction_restores_previous_outputs(project, make_skill, 
 
 def test_process_interruption_leaves_recoverable_journal(project, make_skill, monkeypatch):
     project.pool.install(local(make_skill()))
-    project.initialize(["codex", "kimi"], "copy")
+    project.initialize(["codex", "claude"], "copy")
     original = os.replace
 
     def interrupt(source, destination):
-        if Path(destination).as_posix().endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".claude/skills/example"):
             raise KeyboardInterrupt()
         return original(source, destination)
 

@@ -50,11 +50,11 @@ def test_recovery_refuses_edits_after_interruption(pool, make_skill, tmp_path, m
     root = tmp_path / "project"
     root.mkdir()
     project = Project(root, pool)
-    project.initialize(["codex", "kimi"], "copy")
+    project.initialize(["codex", "claude"], "copy")
     real = os.replace
 
     def interrupt(source, destination):
-        if Path(destination).as_posix().endswith(".kimi/skills/example"):
+        if Path(destination).as_posix().endswith(".claude/skills/example"):
             raise KeyboardInterrupt()
         return real(source, destination)
 

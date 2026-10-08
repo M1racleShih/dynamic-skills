@@ -182,7 +182,7 @@ def test_apply_preserves_pins_and_uses_current_for_missing_members(package_proje
     assert preview["packages"] == ["tests", "web"]
     assert preview["added"] == ["beta"]
     assert preview["kept"] == ["alpha"]
-    assert len(preview["plan"]) == 2
+    assert [step["path"] for step in preview["plan"]] == [".agents/skills/beta"]
     assert project_metadata(project) == before
     assert (pool.root / "index.json").read_bytes() == before_pool
     result = project.apply_packages(["web", "tests", "web"])

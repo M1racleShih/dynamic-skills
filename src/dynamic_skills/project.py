@@ -10,7 +10,7 @@ from pathlib import Path
 
 from filelock import FileLock
 
-from .adapters import ADAPTERS, detect_agents, select_agents
+from .adapters import ADAPTERS, detect_agents, project_skill_dirs, select_agents
 from .errors import SkillsError
 from .files import (
     atomic_write,
@@ -232,19 +232,18 @@ class Project:
         outputs = {}
         changes = {}
         plan = []
-        paths = {}
+        project_dirs = project_skill_dirs(manifest["agents"])
         for skill_id, pin in sorted(pins.items()):
             if skill_id == "synced" and "claude" in manifest["agents"]:
                 raise SkillsError(
                     "Claude Code reserves 'synced'. Import this skill with another --id."
                 )
-            for agent in manifest["agents"]:
-                relative = f"{ADAPTERS[agent].project_dir}/{skill_id}"
+            for directory in sorted(set(project_dirs.values())):
+                relative = f"{directory}/{skill_id}"
                 output = {"digest": pin["digest"], "mode": manifest["mode"]}
                 if manifest["mode"] == "symlink":
                     output["link"] = str(self.pool.object_path(pin["digest"]))
                 outputs[relative] = output
-                paths[relative] = pin
         for relative in sorted(set(outputs) | set(old_state["outputs"])):
             target = output_path(self.root, relative)
             old = old_state["outputs"].get(relative)
@@ -272,7 +271,11 @@ class Project:
             "skills": manifest["skills"],
             "plan": plan,
             "refresh": {a: ADAPTERS[a].refresh for a in manifest["agents"]},
-            "discovery_note": "Kimi/Pi may also discover shared or other agents' directories.",
+            "project_dirs": project_dirs,
+            "discovery_note": (
+                "Kimi/Pi reuse generated .agents/skills when available. "
+                "Other existing discovery roots may still expose duplicate skills."
+            ),
         }
         if dry_run:
             return {**result, "dry_run": True}
@@ -431,7 +434,8 @@ class Project:
         manifest, pins = self.load()
         state = self.state()
         issues = []
-        expected = {f"{ADAPTERS[a].project_dir}/{s}" for a in manifest["agents"] for s in pins}
+        project_dirs = project_skill_dirs(manifest["agents"])
+        expected = {f"{directory}/{s}" for directory in project_dirs.values() for s in pins}
         for relative in sorted(expected | set(state["outputs"])):
             path = output_path(self.root, relative)
             old = state["outputs"].get(relative)
@@ -457,6 +461,7 @@ class Project:
             "project": str(self.root),
             **manifest,
             "pins": pins,
+            "project_dirs": project_dirs,
             "issues": issues,
             "healthy": not issues,
         }

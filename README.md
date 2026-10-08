@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
+  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
 </p>
 <p align="center">
   <a href="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml"><img src="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -31,7 +31,7 @@ dskills plug code-review              # Activate it for this project
 dskills unplug code-review            # Deactivate here; keep the pool version
 ```
 
-![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/memory-analogy.svg)
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/memory-analogy.svg)
 
 `plug` and `unplug` are analogous to requesting and releasing a resource. The pool
 keeps your collection available; the project chooses its working set. A lockfile
@@ -41,7 +41,7 @@ The analogy has a boundary: activation makes a skill discoverable, and removal
 does not erase instructions already read into a conversation. dskills manages
 skill availability and versions; your agent controls context loading.
 
-![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/skill-lifecycle.svg)
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/skill-lifecycle.svg)
 
 **Collect freely. Select deliberately. Undo when needed.** If this is how you want
 to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
@@ -59,13 +59,13 @@ account, background daemon, telemetry or model subscription required.
 Requires Python 3.11+. Git is required for Git repository sources.
 
 ```sh
-uv tool install dynamic-skills==0.1.0
+uv tool install dynamic-skills==0.1.1
 ```
 
 Or use pipx:
 
 ```sh
-pipx install dynamic-skills==0.1.0
+pipx install dynamic-skills==0.1.1
 ```
 
 Both `dskills` and `dynamic-skills` invoke the same CLI. Packages are distributed on
@@ -74,7 +74,7 @@ attached to [GitHub releases](https://github.com/M1racleShih/dynamic-skills/rele
 To install this release directly from Git:
 
 ```sh
-uv tool install git+https://github.com/M1racleShih/dynamic-skills.git@v0.1.0
+uv tool install git+https://github.com/M1racleShih/dynamic-skills.git@v0.1.1
 ```
 
 Review the [changelog](https://github.com/M1racleShih/dynamic-skills/blob/main/CHANGELOG.md)
@@ -517,14 +517,39 @@ because you install, activate or read a skill.
 | --- | --- | --- |
 | [Codex](https://developers.openai.com/codex/skills) | `.agents/skills/` | Automatic discovery; restart if a change is missing. |
 | [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/` | Live change detection; restart if a change is missing. |
-| [Kimi Code](https://github.com/MoonshotAI/kimi-cli/blob/main/docs/en/customization/skills.md) | `.kimi/skills/` | Restart for a refreshed skill catalog. |
-| [Pi](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md) | `.pi/skills/` | Trust the project, then use `/reload`. |
+| [Kimi Code](https://github.com/MoonshotAI/kimi-cli/blob/main/docs/en/customization/skills.md) | `.kimi/skills/`, or reuse `.agents/skills/` with Codex | Restart for a refreshed skill catalog. |
+| [Pi](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md) | `.pi/skills/`, or reuse `.agents/skills/` with Codex | Trust the project, then use `/reload`. |
+
+When Codex is selected, its generated `.agents/skills/` also serves selected Pi
+and Kimi agents. Each skill is written there only once, avoiding the duplicate
+`.pi/skills/` and `.kimi/skills/` copies. Without Codex, those agents retain their
+native directories. Claude always needs `.claude/skills/`. Project command and
+`status` JSON responses include `project_dirs`, mapping each agent to its actual
+output directory; `agents` in the manifest still records every selected agent.
+
+For projects initialized by an older release, preview and apply the cleanup:
+
+```sh
+dskills sync --dry-run
+dskills sync
+# In Pi, run /reload after synchronization.
+```
+
+Synchronization removes only redundant **owned, unmodified** copies, using the
+normal recoverable transaction. Local edits or replaced links block cleanup;
+save that work before retrying. Pins and selection remain unchanged. Undo uses
+the current discovery layout rather than recreating obsolete duplicate copies.
+Unmanaged directories are never adopted or deleted, even if their content matches.
 
 Discovery is **not isolated by target agent**. Pi and Kimi can also read
 `.agents/skills`; Kimi can merge other branded skill directories. Existing globals,
 ancestor directories, packages, custom loader settings and disabled-skill policies
-can affect what is visible. Native skill extensions are preserved, not translated;
-a Claude-specific skill is not automatically semantically portable to another agent.
+can affect what is visible. Shared-root reuse only deduplicates dskills-generated
+outputs; unmanaged or global copies can still cause collisions. Kimi's branded-root
+merging is configurable, so dskills does not rely on it to drop Claude/Kimi outputs
+when no Codex shared root is generated. Native skill extensions are preserved, not
+translated; a Claude-specific skill is not automatically semantically portable
+to another agent.
 
 These paths and refresh notes follow upstream documentation reviewed on
 2026-09-10. Filesystem contracts are tested for all four adapters. End-to-end model
