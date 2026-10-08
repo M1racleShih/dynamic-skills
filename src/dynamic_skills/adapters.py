@@ -13,6 +13,7 @@ class Adapter:
     global_dirs: tuple[str, ...]
     refresh: str
     documentation: str
+    shared_project_dirs: tuple[str, ...] = ()
 
 
 ADAPTERS = {
@@ -42,6 +43,7 @@ ADAPTERS = {
         ),
         "Restart Kimi Code to refresh discovered skills.",
         "https://github.com/MoonshotAI/kimi-cli/blob/main/docs/en/customization/skills.md",
+        (".agents/skills",),
     ),
     "pi": Adapter(
         "pi",
@@ -49,6 +51,7 @@ ADAPTERS = {
         (".pi/agent/skills", ".agents/skills"),
         "Run /reload in a trusted project. Existing context remains.",
         "https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md",
+        (".agents/skills",),
     ),
 }
 
@@ -62,6 +65,24 @@ def select_agents(names: list[str]) -> list[str]:
     if not names:
         raise SkillsError("Select at least one agent with --agent.")
     return sorted(set(names))
+
+
+def project_skill_dirs(names: list[str]) -> dict[str, str]:
+    """Reuse a generated shared root instead of emitting duplicate native skills.
+
+    Only roots required by selected agents count, not arbitrary existing directories.
+    Keep branded outputs when no selected agent requires a shared root. In particular,
+    do not depend on Kimi's configurable branded-directory merging/fallback behavior.
+    """
+    agents = select_agents(names)
+    required = {ADAPTERS[name].project_dir for name in agents}
+    return {
+        name: next(
+            (root for root in ADAPTERS[name].shared_project_dirs if root in required),
+            ADAPTERS[name].project_dir,
+        )
+        for name in agents
+    }
 
 
 def detect_agents(project: Path, home: Path) -> list[str]:

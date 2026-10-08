@@ -42,6 +42,28 @@ def test_cli_end_to_end(tmp_path, make_skill):
     assert not (project / ".kimi/skills/example").exists()
 
 
+def test_cli_codex_pi_bridge_uses_shared_discovery(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    init = run(tmp_path, "init", "--project", str(project), "--agent", "codex", "--agent", "pi")
+    assert init.returncode == 0, init.stdout
+    directories = {"codex": ".agents/skills", "pi": ".agents/skills"}
+    assert json.loads(init.stdout)["data"]["project_dirs"] == directories
+    bridge = run(tmp_path, "bridge", "--project", str(project))
+    assert bridge.returncode == 0, bridge.stdout
+    assert (project / ".agents/skills/dynamic-skills/SKILL.md").is_file()
+    assert not (project / ".pi/skills/dynamic-skills").exists()
+    status = run(tmp_path, "status", "--project", str(project))
+    assert status.returncode == 0, status.stdout
+    data = json.loads(status.stdout)["data"]
+    assert data["healthy"]
+    assert data["agents"] == ["codex", "pi"]
+    assert data["project_dirs"] == directories
+    sync = run(tmp_path, "sync", "--project", str(project))
+    assert sync.returncode == 0, sync.stdout
+    assert not json.loads(sync.stdout)["data"]["changed"]
+
+
 def test_json_preserves_unicode_through_legacy_terminal_encoding(tmp_path):
     source = tmp_path / "unicode-skill"
     source.mkdir()
