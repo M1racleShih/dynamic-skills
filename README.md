@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
+  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/main/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
 </p>
 <p align="center">
   <a href="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml"><img src="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -31,7 +31,7 @@ dskills plug code-review              # Activate it for this project
 dskills unplug code-review            # Deactivate here; keep the pool version
 ```
 
-![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/memory-analogy.svg)
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/main/assets/memory-analogy.svg)
 
 `plug` and `unplug` are analogous to requesting and releasing a resource. The pool
 keeps your collection available; the project chooses its working set. A lockfile
@@ -41,7 +41,7 @@ The analogy has a boundary: activation makes a skill discoverable, and removal
 does not erase instructions already read into a conversation. dskills manages
 skill availability and versions; your agent controls context loading.
 
-![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/skill-lifecycle.svg)
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/main/assets/skill-lifecycle.svg)
 
 **Collect freely. Select deliberately. Undo when needed.** If this is how you want
 to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
