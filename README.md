@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
+  <img src="https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/wordmark.svg" width="720" alt="dynamic-skills — Keep the pool. Choose the skills." />
 </p>
 <p align="center">
   <a href="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml"><img src="https://github.com/M1racleShih/dynamic-skills/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -8,73 +8,68 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-172b2b" alt="MIT license" /></a>
 </p>
 
-**Keep every skill. Activate only what you need.**
+# Your agent doesn't need every skill you own.
 
-Your skill collection grows. Your current task only needs a few. When everything
-lives in global discovery directories, unrelated skills compete for attention,
-projects inherit the same catalog, and updates can change instructions under
-ongoing work. Manually copying skills between agents adds more versions to maintain.
+**Keep one skill library. Choose a different working set for each project.**
 
-Dynamic Skills (`dskills`) gives your collection a **versioned local pool** and each
-project a **small, explicit selection**. Import once, pin the skills you need, and
-change that selection as the work changes.
+Dynamic Skills (`dskills`) is a local CLI for **Codex, Claude Code, Kimi Code and Pi**.
+Import skills once, then activate only the ones a project needs instead of manually
+copying the same collection into every agent directory.
 
-### Think dynamic memory allocation, applied to skills
+- **Select, don't duplicate your whole catalog.** One pool; explicit project selections.
+- **Keep instructions stable.** Project pins stay unchanged when the pool is updated.
+- **Change your mind safely.** Preview changes, preserve local edits, unplug and undo.
 
-In C/C++, you request memory when you need it and release it when its job is done.
-dskills applies that lifecycle idea to the skills exposed in an initialized project:
+After importing a skill and initializing a project, the workflow is:
 
 ```sh
-dskills install /path/to/code-review   # Keep a skill in the pool
-dskills plug code-review              # Activate it for this project
-# Work with the skill through your agent.
-dskills unplug code-review            # Deactivate here; keep the pool version
+dskills plug review-checklist --dry-run  # Preview activation
+dskills plug review-checklist            # Make it discoverable here
+dskills unplug review-checklist          # Remove here; keep the pool version
+dskills undo                             # Restore the previous selection
 ```
 
-![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug. Unplug preserves pool versions and existing conversation context.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/memory-analogy.svg)
+[Try a disposable demo](#try-it-without-touching-your-skills) ·
+[Use it through your agent](#recommended-use-dskills-through-your-agent) ·
+[Full CLI workflow](#get-started-with-the-cli)
 
-`plug` and `unplug` are analogous to requesting and releasing a resource. The pool
-keeps your collection available; the project chooses its working set. A lockfile
-pins exact versions, so updating the pool does not silently update other projects.
+**Want this workflow in your toolbox? [Star the repository](https://github.com/M1racleShih/dynamic-skills)
+to follow its development.** Try it first; feedback and bug reports are just as welcome.
 
-The analogy has a boundary: activation makes a skill discoverable, and removal
-does not erase instructions already read into a conversation. dskills manages
-skill availability and versions; your agent controls context loading.
+Local first: no server, account, background daemon, telemetry or model subscription
+required by the CLI. Your agent and imported skills may have their own requirements.
 
-![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.1/assets/skill-lifecycle.svg)
-
-**Collect freely. Select deliberately. Undo when needed.** If this is how you want
-to manage agent skills, [star the project](https://github.com/M1racleShih/dynamic-skills)
-to support its development.
-
-Built for **Codex, Claude Code, Kimi Code and Pi**. Local first, CLI first, no server,
-account, background daemon, telemetry or model subscription required.
-
-> **v0.1 · Alpha.** Core workflows have automated filesystem and CLI tests.
-> Native loading depends on your agent version, trust settings and configuration.
-> This tool does not erase instructions already present in an ongoing conversation.
+> **Alpha.** Native discovery depends on your agent version, trust settings and
+> configuration. Removing a skill does not erase instructions already in a conversation.
+> No token-saving or model-performance claims are made.
 
 ## Install
 
 Requires Python 3.11+. Git is required for Git repository sources.
 
 ```sh
-uv tool install dynamic-skills==0.1.1
+uv tool install dynamic-skills==0.1.0
 ```
 
 Or use pipx:
 
 ```sh
-pipx install dynamic-skills==0.1.1
+pipx install dynamic-skills==0.1.0
 ```
 
-Both `dskills` and `dynamic-skills` invoke the same CLI. Packages are distributed on
-[PyPI](https://pypi.org/project/dynamic-skills/); wheels and source archives are also
-attached to [GitHub releases](https://github.com/M1racleShih/dynamic-skills/releases).
-To install this release directly from Git:
+Need an installer? See [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
+or [pipx installation](https://pipx.pypa.io/stable/installation/).
+Both `dskills` and `dynamic-skills` invoke the same CLI.
+
+**Published release: 0.1.0. Source version on `main`: 0.1.1.** The source includes
+shared-root deduplication for Codex + Pi/Kimi; 0.1.1 is not yet a PyPI release or
+Git tag. The commands above deliberately use the available package.
+Packages and archives are on [PyPI](https://pypi.org/project/dynamic-skills/)
+and [GitHub releases](https://github.com/M1racleShih/dynamic-skills/releases).
+For the 0.1.1 source, use the pinned merged commit instead of an unpublished tag:
 
 ```sh
-uv tool install git+https://github.com/M1racleShih/dynamic-skills.git@v0.1.1
+uv tool install git+https://github.com/M1racleShih/dynamic-skills.git@7bd716b50f081a53f266568a712620ebbd763dfd
 ```
 
 Review the [changelog](https://github.com/M1racleShih/dynamic-skills/blob/main/CHANGELOG.md)
@@ -83,6 +78,33 @@ using `uv tool install --force dynamic-skills==<version>` or
 `pipx install --force dynamic-skills==<version>`. Keep backups of your pool and
 project metadata before upgrading between Alpha versions. Report reproducible
 problems through [GitHub Issues](https://github.com/M1racleShih/dynamic-skills/issues).
+
+## Try it without touching your skills
+
+No existing skill collection or agent session is needed. Clone this repository,
+then run the demo using the published package in an isolated Python environment:
+
+```sh
+git clone https://github.com/M1racleShih/dynamic-skills.git
+cd dynamic-skills
+uv run --isolated --no-project --with dynamic-skills==0.1.0 python scripts/demo.py
+```
+
+The demo imports the small [review checklist](examples/review-checklist/SKILL.md)
+from this repository into a **temporary pool and project**. It checks:
+
+1. `--dry-run` leaves the skill absent from the project.
+2. `plug` creates the project copy.
+3. `unplug` removes that copy but keeps the pool version.
+4. `undo` restores the exact content and pin.
+
+It cleans up its temporary files automatically. Cloning and installing dependencies
+need network access; the demonstration itself uses only local files, runs no skill
+scripts, and makes no model calls. [Manual steps and demo checks](docs/try-it.md).
+
+**Better than a larger skill list:** a frontend project can select its frontend
+skills while a backend project selects its API and review skills from the same pool.
+Global skills and agent plugins are still controlled by their own tools.
 
 ## Recommended: use dskills through your agent
 
@@ -97,7 +119,7 @@ After installing the CLI, expose the built-in skill in your project:
 ```sh
 # For a new project, choose your agent(s); use codex, claude, kimi or pi.
 dskills init --agent codex
-# For an already initialized project, run just this command:
+# Then activate the manager skill (also works in an initialized project):
 dskills bridge
 ```
 
@@ -191,6 +213,30 @@ can use your SSH agent and SSH configuration. Use SSH for private repositories;
 embedded URL passwords, Git hooks, submodules and skill installation scripts are
 not used. Custom global Git configuration, including credential helpers, is
 deliberately not loaded.
+
+### Think dynamic memory allocation, applied to skills
+
+In C/C++, you request memory when you need it and release it when its job is done.
+dskills applies that lifecycle idea to skills exposed in an initialized project:
+
+```sh
+dskills install /path/to/code-review   # Keep a skill in the pool
+dskills plug code-review              # Activate it for this project
+# Work with the skill through your agent.
+dskills unplug code-review            # Deactivate here; keep the pool version
+```
+
+![C/C++ and dskills lifecycle comparison: malloc or new parallels plug, memory use parallels agent discovery and reading, and free or delete parallels unplug.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/memory-analogy.svg)
+
+`plug` and `unplug` are analogous to requesting and releasing a resource. The pool
+keeps the collection available; each project chooses its working set. A lockfile
+pins exact versions, so pool updates do not silently change project instructions.
+
+The analogy has a boundary: activation makes a skill discoverable; removal does
+not erase instructions already read. dskills manages availability and versions;
+your agent controls context loading.
+
+![From a shared global skill catalog to a versioned pool with explicit project selection and on-demand reads.](https://raw.githubusercontent.com/M1racleShih/dynamic-skills/v0.1.0/assets/skill-lifecycle.svg)
 
 ## One pool, an explicit project selection
 
@@ -519,6 +565,10 @@ because you install, activate or read a skill.
 | [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/` | Live change detection; restart if a change is missing. |
 | [Kimi Code](https://github.com/MoonshotAI/kimi-cli/blob/main/docs/en/customization/skills.md) | `.kimi/skills/`, or reuse `.agents/skills/` with Codex | Restart for a refreshed skill catalog. |
 | [Pi](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md) | `.pi/skills/`, or reuse `.agents/skills/` with Codex | Trust the project, then use `/reload`. |
+
+**Version note:** shared-root reuse is in the 0.1.1 source; the published 0.1.0
+package generates one native output per selected agent. Use the pinned source
+installation above if you need the fix before the next release.
 
 When Codex is selected, its generated `.agents/skills/` also serves selected Pi
 and Kimi agents. Each skill is written there only once, avoiding the duplicate
